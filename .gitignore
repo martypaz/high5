@@ -1,0 +1,8 @@
+# Never commit the original app binaries or raw analysis dumps
+apk/
+*.apk
+*.xapk
+*.apkm
+*.aab
+analysis-out/
+*.zip
