@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LiveCatalogue, fillTemplate, ratingFromCode, mapEpisode, mapShowCard, SOURCE } from '../js/live.js';
+import { LiveCatalogue, fillTemplate, ratingFromCode, mapEpisode, mapShowCard, buildImageUrl, SOURCE } from '../js/live.js';
 import { SearchVM, ShowVM, ParentalControl, MemoryStore, MockMyList, MockResume } from '../js/core.js';
 
 // Invented content, shaped like the real responses (field names from the official app's data).
@@ -8,7 +8,8 @@ const CONFIG = { dataServiceSettings: {
   platformId: 'plat-x', coronaBaseUri: 'https://corona.channel5.com',
   coronaShowQueryTemplateUri: '/shows/search.json?platform={platformId}&genre={genre}&query={query}',
   coronaShowTemplateUri: '/shows/{showId}.json?platform={platformId}',
-  coronaAllEpisodesByShowTemplateUri: '/shows/{showId}/episodes.json?platform={platformId}' } };
+  coronaAllEpisodesByShowTemplateUri: '/shows/{showId}/episodes.json?platform={platformId}',
+  ednaImagesTemplateUri: 'https://api-images.channel5.com/otis/images/{type}/{id}/{resolution}.{fmt}?overlay={overlayType}&updated_at={time}&master={master}' } };
 const SEARCH = { size: 2, shows: [
   { id: '111', title: 'Harbour Detectives', genre: 'Crime', child_directed: false, vod_subgenres: ['Drama'], chan: 'C5', s_desc: 'Two officers police a seaside town.', img_upd: 1, use_title_img: true },
   { id: '222', title: 'Orbit Kids', genre: 'Kids', child_directed: true, vod_subgenres: [], chan: 'C5', s_desc: 'Tiny astronauts.', img_upd: 1, use_title_img: true } ] };
@@ -118,4 +119,55 @@ test('works with the existing view-models: search with parental filter, show pag
 
 test('card mapping tolerates missing fields', () => {
   const c = mapShowCard({ id: 5 }); assert.equal(c.title, ''); assert.deepEqual(c.subgenres, []); assert.equal(c.rating, 4);
+});
+
+const IMG_T = CONFIG.dataServiceSettings.ednaImagesTemplateUri;
+
+test('image URLs come from the config template, drop empty parameters and keep the cache-buster', () => {
+  assert.equal(buildImageUrl(IMG_T, { type: 'show', id: '111', resolution: '423x238', updated: 1700 }),
+    'https://api-images.channel5.com/otis/images/show/111/423x238.jpg?updated_at=1700');
+  assert.equal(buildImageUrl(IMG_T, { type: 'episode', id: 'C5254060002', resolution: '1024x576' }),
+    'https://api-images.channel5.com/otis/images/episode/C5254060002/1024x576.jpg');
+});
+
+test('image URLs are refused (null) for unexpected types, ids, sizes, templates and hosts', () => {
+  const ok = { type: 'show', id: '111', resolution: '423x238' };
+  assert.equal(buildImageUrl(IMG_T, { ...ok, type: 'channel' }), null);
+  assert.equal(buildImageUrl(IMG_T, { ...ok, id: '../x' }), null);
+  assert.equal(buildImageUrl(IMG_T, { ...ok, id: '1?x=2' }), null);
+  assert.equal(buildImageUrl(IMG_T, { ...ok, resolution: 'big' }), null);
+  assert.equal(buildImageUrl('', ok), null); assert.equal(buildImageUrl(undefined, ok), null);
+  assert.equal(buildImageUrl('https://evil.example.com/{type}/{id}/{resolution}.{fmt}', ok), null);
+  assert.equal(buildImageUrl('http://api-images.channel5.com/{type}/{id}/{resolution}.{fmt}', ok), null);
+  assert.equal(buildImageUrl('javascript:alert(1)//{id}', ok), null);
+});
+
+test('search results and show pages carry image URLs', async () => {
+  const cat = make();
+  const r = await cat.search('harbour');
+  assert.match(r[0].imageUrl, /\/show\/111\/423x238\.jpg/);
+  const s = await cat.getShow('111');
+  assert.match(s.bannerUrl, /\/show\/111\/1024x576\.jpg/);
+  assert.match(s.episodes[0].imageUrl, /\/episode\/e2\/423x238\.jpg/);
+});
+
+test('no image template in the config means no images, not an error', async () => {
+  const noImg = { dataServiceSettings: { ...CONFIG.dataServiceSettings, ednaImagesTemplateUri: undefined } };
+  const cat = make([['config.json', noImg], ['/shows/search.json', SEARCH]]);
+  const r = await cat.search('harbour');
+  assert.equal(r[0].imageUrl, null);
+});
+
+test('an image template on a foreign host is ignored without breaking search', async () => {
+  const bad = { dataServiceSettings: { ...CONFIG.dataServiceSettings, ednaImagesTemplateUri: 'https://evil.example.com/{type}/{id}/{resolution}.{fmt}' } };
+  const r = await make([['config.json', bad], ['/shows/search.json', SEARCH]]).search('harbour');
+  assert.equal(r.length, 2); assert.equal(r[0].imageUrl, null);
+});
+
+test('ratings that are only a safety default are flagged as unknown so the UI does not display them', async () => {
+  const cat = make(); const r = await cat.search('harbour');
+  assert.equal(r[0].ratingKnown, false); assert.equal(r[0].rating, 4);          // still fails closed for the parental lock
+  assert.equal((await cat.getShow('111')).ratingKnown, true);                    // known once every episode has a recognised rating
+  const unknown = [['config.json', CONFIG], ['/shows/111/episodes.json', { episodes: [ep('a', 1, 1, { rat: 'PG' })] }], ['/shows/111.json', SHOW]];
+  assert.equal((await make(unknown).getShow('111')).ratingKnown, false);
 });

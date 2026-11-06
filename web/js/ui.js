@@ -29,7 +29,8 @@ const h = (tag, attrs = {}, ...kids) => {
 const toast = (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2500); };
 const nav = (attrs = {}, ...kids) => h('a', { 'data-nav': true, ...attrs }, ...kids);
 const button = (label, onclick, cls = 'btn') => h('button', { class: cls, 'data-nav': true, type: 'button', onclick }, label);
-const tile = (item, href, extra) => nav({ class: 'tile', href }, h('span', { class: 'badge' }, RATING_LABELS[item.rating] ?? ''), h('span', { class: 't' }, item.title), h('span', { class: 'g' }, item.genre ?? ''), extra);
+const poster = (url, cls = 'poster') => url ? h('img', { class: cls, src: url, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer', onerror: (e) => e.target.remove() }) : null;   // a failed image just disappears
+const tile = (item, href, extra) => nav({ class: 'tile', href }, poster(item.imageUrl), item.ratingKnown === false ? null : h('span', { class: 'badge' }, RATING_LABELS[item.rating] ?? ''), h('span', { class: 't' }, item.title), h('span', { class: 'g' }, item.genre ?? ''), extra);
 const rail = (title, tiles) => [h('h2', {}, title), h('div', { class: 'rail' }, tiles)];
 const fmtTime = (ms) => new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 const mmss = (s) => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -158,7 +159,8 @@ async function renderShow(id) {
   const drawEps = () => { markSeasons(); eps.replaceChildren(...v.episodesFor(season).map((e) => {
     if (isLive) {   // read-only: details only, no playback
       const meta = [e.durationSeconds ? mins(e.durationSeconds) : '', e.ratingCode, e.available ? (e.availableUntilMs ? `Available until ${dateOf(e.availableUntilMs)}` : 'Available') : 'Not currently available', e.hasSubtitles ? 'Subtitles' : ''].filter(Boolean).join(' · ');
-      return h('div', { class: 'ep', tabindex: '0', 'data-nav': true }, h('div', { class: 't' }, `${e.episode}. ${e.title}`), h('div', { class: 's' }, e.synopsis), h('div', { class: 's' }, meta), e.advisory ? h('div', { class: 's' }, e.advisory) : null);
+      return h('div', { class: 'ep thumbed', tabindex: '0', 'data-nav': true }, poster(e.imageUrl, 'thumb'),
+        h('div', { class: 'body' }, h('div', { class: 't' }, `${e.episode}. ${e.title}`), h('div', { class: 's' }, e.synopsis), h('div', { class: 's' }, meta), e.advisory ? h('div', { class: 's' }, e.advisory) : null));
     }
     return nav({ class: 'ep', href: `#/play/${encodeURIComponent(e.id)}` }, h('div', { class: 't' }, `${e.episode}. ${e.title}`), h('div', { class: 's' }, e.synopsis));
   })); };
@@ -166,9 +168,9 @@ async function renderShow(id) {
   const next = v.nextToWatch, first = v.show.episodes[0];
   const playControl = isLive ? h('span', { class: 'dim' }, 'Playback is not available in this version.')
     : next ? nav({ class: 'btn primary', href: `#/play/${encodeURIComponent(next.id)}` }, next.id !== first?.id ? 'Resume' : 'Play') : null;
-  const sub = [v.show.genre, ...(v.show.subgenres ?? []), v.show.channel ? `Channel ${v.show.channel}` : '', RATING_LABELS[v.show.rating]].filter(Boolean).join(' · ');
+  const sub = [v.show.genre, ...(v.show.subgenres ?? []), v.show.channel ? `Channel ${v.show.channel}` : '', v.show.ratingKnown === false ? '' : RATING_LABELS[v.show.rating]].filter(Boolean).join(' · ');
   view.replaceChildren(
-    h('h1', {}, v.show.title), h('p', { class: 'dim' }, sub), h('p', {}, v.show.synopsis),
+    poster(v.show.bannerUrl, 'banner'), h('h1', {}, v.show.title), h('p', { class: 'dim' }, sub), h('p', {}, v.show.synopsis),
     h('div', { class: 'row' }, playControl, listBtn, ...seasonBtns), v.show.episodes.length ? eps : h('p', { class: 'dim' }, 'No episodes are listed for this show.'));
 }
 

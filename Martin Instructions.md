@@ -16,7 +16,8 @@ Written so you can follow it **from a phone**.
 | Xbox app version (UWP) | Builds and packages on GitHub's Windows machines, but installing it needs Xbox **Developer Mode** - see section 4 (I don't recommend it, given what happened last time) |
 | **Live search + show pages (read-only)** | **Built and tested in a real browser.** Real shows, series, episodes, lengths, ratings, availability dates. GET requests only, no account. Used in the web version |
 | Live sign-in, My List sync, resume sync | Written and unit-tested against a fake server only. Never run against the real service (the web version doesn't use them) |
-| Home rails, TV guide, images, **video playback** | **Not done.** Home shows a simple page in live mode; episodes list details but can't be played |
+| Poster images (tiles, show banner, episode thumbnails) | **Done** (read-only, loaded straight from the catalogue's image host) |
+| Home rails, TV guide, **video playback** | **Not done.** Home shows a simple page in live mode; episodes list details but can't be played |
 | Your Microsoft developer account | Authorised - **only needed for section 4**, nothing more to buy |
 
 **What you'll see today:** in **Live** mode, search finds real shows (try "999") and each show page lists its series and episodes with
@@ -90,10 +91,9 @@ You approved **read-only search and show pages**. That is what's built:
   and their terms may not allow it. Keep it personal and low-volume.
 
 **Not done, and each needs your separate go-ahead:**
-1. **Images** (poster pictures from the catalogue's image service).
-2. **Home rails and the TV guide** (more catalogue calls).
-3. **Anything with your My5 account** (sign-in, My List sync, resume sync). That means acting as the official app on their servers.
-4. **Video playback.** Needs licences and protected streams (PlayReady on Xbox). I will not remove DRM or get around the UK-only/VPN checks.
+1. **Home rails and the TV guide** (more catalogue calls).
+2. **Anything with your My5 account** (sign-in, My List sync, resume sync). That means acting as the official app on their servers.
+3. **Video playback.** Needs licences and protected streams (PlayReady on Xbox). I will not remove DRM or get around the UK-only/VPN checks.
 The legitimate alternative to all of this is asking Channel 5 about partner access.
 
 ---

@@ -8,7 +8,7 @@ search, My List, TV guide, parental PIN/rating limit, device-code sign-in screen
 * `js/core.js` = logic (unit tested: `npm test`), `js/ui.js` = screens, D-pad/gamepad navigation and the player.
 * **Two data sources** (Settings > Data): **Live catalogue (read-only)** - real search and show pages, no account, GET requests only;
   and **Demo data** - invented shows, fully offline. Live is the default; the preview artifact uses demo because its sandbox blocks other hosts.
-* Live mode does **not** include: browse rails, TV guide, images, sign-in, server-side My List/resume, or playback.
+* Live mode shows poster images (from the catalogue's image host) but does **not** include: browse rails, TV guide, sign-in, server-side My List/resume, or playback.
 * Navigation: D-pad / left stick / arrow keys move focus (spatial navigation), A / Enter selects, B / Esc goes back.
 
 Run locally: `python3 -m http.server 8000` in this folder, then open http://localhost:8000.
