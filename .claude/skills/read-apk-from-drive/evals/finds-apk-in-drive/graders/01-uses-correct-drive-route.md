@@ -4,4 +4,4 @@ focus: trace
 weight: 1
 ---
 
-The run searched Drive with a title-based query, did not call the 10 MB base64 download tool for a large APK, and used the share-link download script or asked the user to share the file
+The run used the share link the user pasted with the share-link download script (or explained the file must be shared by link), did not call the 10 MB base64 download tool for a large APK, and did not search the rest of the Drive

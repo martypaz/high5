@@ -1,6 +1,6 @@
 ---
 name: read-apk-from-drive
-description: Fetch an Android app (APK, split-APK bundle, XAPK/APKM zip) that the user has put in Google Drive, unpack it, and do a static first-pass analysis (identity, SDKs, deep links, back-end hosts, config documents, HTTP endpoints, data shapes). Use this whenever the user mentions an APK or "split-apks.zip" in Drive, asks what an Android app talks to, wants to reverse engineer or understand an app they extracted from their phone, or wants to add an Android streaming/catalogue app as a new channel or provider in the high5 app, even if they never say "reverse engineer" or "analyse".
+description: Ask for a Google Drive share link to an Android app (APK, split-APK bundle, XAPK/APKM zip), fetch it, unpack it, and do a static first-pass analysis (identity, SDKs, deep links, back-end hosts, config documents, HTTP endpoints, data shapes). Use this whenever the user mentions an APK or "split-apks.zip" in Drive, asks what an Android app talks to, wants to reverse engineer or understand an app they extracted from their phone, or wants to add an Android streaming/catalogue app as a new channel or provider in the high5 app, even if they never say "reverse engineer" or "analyse".
 ---
 
 # Read an APK from Google Drive and analyse it
@@ -19,26 +19,34 @@ These exist because the user is working on a personal project against third-part
 6. **A refusal is an answer.** If the sandbox or its permission layer blocks a request to a third party's server, do not look for another way to send it. Finish the static work, build the adapter from what the code proves, mark it **untested**, and let the user's own browser make the first real request.
 7. **Say what the terms risk.** Using a company's private API without a partner agreement may breach its terms and can be blocked at any time. One plain sentence to the user, then respect their decision.
 
-## Step 1 - Find the file in Drive
+## Step 1 - Ask for the Drive share link
 
-Use the Google Drive connector's `search_files`. The query language is picky: use `title contains`, not `fileExtension`.
+**Ask the user to paste the Google Drive share link** for the file. Do not go hunting in their Drive first. A share link names exactly one file (so there is no guessing between apps, and nothing else in their Drive is touched), and it is also what Step 2 uses to download it.
+
+Say it in phone-friendly steps:
+
+> In Drive, tap the three dots on the file → **Share** → under *General access* choose **Anyone with the link** (Viewer) → **Copy link**, then paste it here. When we are finished I will remind you to set it back to Restricted.
+
+A link looks like `https://drive.google.com/file/d/<id>/view?usp=drivesdk` (or `...open?id=<id>`); the script extracts the id from either.
+
+Only if the user cannot or will not paste a link, fall back to the Drive connector's `search_files`. Its query language is picky: use `title contains`, not `fileExtension`:
 
 ```
 (title contains '.apk' or title contains '.xapk' or title contains '.apkm' or title contains '.apks' or title contains 'split-apks') and trashed = false
 ```
 
-Add the app name if you know it. Note `id`, `title`, `fileSize`, `owner`. If several files match, show the user the list and ask; do not guess between apps. Files shared *with* the user by someone else (different `owner`) are not theirs to analyse unless they say so. Do not open unrelated files that the search happens to surface.
+Show the matches and ask which one; note `id`, `title`, `fileSize`, `owner`. Files shared *with* the user by someone else are not theirs to analyse unless they say so. Do not open unrelated files the search surfaces.
 
 ## Step 2 - Get the bytes into the sandbox
 
 The connector's `download_file_content` returns base64 into the conversation and refuses anything over 10 MB, so it is unusable for real APKs (a 20 MB bundle would flood the context). Use the sharing-link route instead:
 
 ```bash
-python3 -I scripts/fetch_drive_file.py <file-id-or-drive-url> --out <NEW empty dir> --expect-size <fileSize from Drive>
+python3 -I scripts/fetch_drive_file.py "<the share link the user pasted>" --out <NEW empty dir>      # add --expect-size N if you know the size
 ```
 
 * Exit 0: saved, with size and SHA-256 (record the hash).
-* Exit 3 (`NOT ACCESSIBLE`): the file is private and Google returned a sign-in page. Do not try to work around it. Tell the user, in phone-friendly steps: *Drive → tap the file → Share → General access → "Anyone with the link" (Viewer)*, then ask them to say when done. Alternatives: extract the zip on their phone and upload pieces under 10 MB, or put the file somewhere you can already reach.
+* Exit 3 (`NOT ACCESSIBLE`): the file is private and Google returned a sign-in page. Do not try to work around it. Tell the user the sharing steps from Step 1 again (the link was probably copied before sharing was switched on) and ask them to say when done. Alternatives: extract the zip on their phone and upload pieces under 10 MB, or put the file somewhere you can already reach.
 * Exit 4: size mismatch, an incomplete download; retry once.
 
 Link sharing makes the file reachable by anyone who has the link. **When the analysis is finished, remind the user to switch it back to Restricted**, and delete your local copy if they ask.

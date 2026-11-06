@@ -112,8 +112,7 @@ Ratings are not shown for ITVX (the search gives none) and the parental lock tre
 
 ## 7. Adding more channels later
 
-Put the next app's APK (or split-apks zip) in Drive and ask me to add it. I use the `read-apk-from-drive` skill. If the Drive file is private I'll ask you to
-set it to **Anyone with the link** for a while - and you then switch it **back to Restricted** when I say it's done. **Right now: the ITVX file may still be shared by link. Please switch it back to Restricted.**
+Upload the next app's APK (or split-apks zip) to Drive and **paste me its share link** (Drive → three dots on the file → Share → *Anyone with the link* → Copy link). I use the `read-apk-from-drive` skill, which asks for that link first and only touches that one file. When I say I'm done, switch it **back to Restricted**. **Right now: the ITVX file may still be shared by link. Please switch it back to Restricted.**
 
 ## 8. Where everything is
 

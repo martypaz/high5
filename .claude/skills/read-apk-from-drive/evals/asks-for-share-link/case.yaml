@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: asks-for-share-link
+expected_outcome: |
+  Asks the user to paste the Google Drive share link (with simple phone steps to set Anyone with the link and copy it) instead of searching their Drive.
