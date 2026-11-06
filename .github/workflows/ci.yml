@@ -21,6 +21,10 @@ jobs:
         with: { node-version: '22' }
       - run: npm test
         working-directory: web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: high5-web
+          path: web
 
   xbox-package:
     # windows-2022 ships VS 2022 with the UWP workload + Windows SDK 19041; windows-latest (newer VS) does not.

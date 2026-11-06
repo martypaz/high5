@@ -1,153 +1,113 @@
 # Martin Instructions
 
-Everything you need to know about **high5** (the unofficial Xbox app modelled on My5), what's done, what you need to
-install or sign up for, and what to do next. Written so you can follow it **from a phone** wherever possible.
+Everything about **high5** (the unofficial Xbox app modelled on My5): what's done, what you need, and what to do next.
+Written so you can follow it **from a phone**.
 
-> **Personal use only.** Use your own My5 account, in the UK. Don't publish this app. Not affiliated with Channel 5.
+> **Personal use only.** Use your own My5 account, in the UK. Don't publish it as an app. Not affiliated with Channel 5.
 
 ---
 
-## 1. Where things stand (read this first)
+## 1. Where things stand
 
 | Thing | Status |
 |---|---|
 | Analysis of the My5 Android app (7.26.6) | Done - `docs/analysis/my5-7.26.6.md` |
-| Core logic (screens' behaviour, parental PIN, resume, sign-in flow, My List) | **Built and tested** - 31 automatic tests pass on GitHub |
-| Live connection to My5's user service (sign-in code, My List, resume) | **Written and unit-tested against a fake server only.** Never run against the real service |
-| Xbox app screens (UWP) | Written, and **builds and packages successfully on GitHub's Windows machines** (latest run is green) |
-| Real TV catalogue and video playback | **Not done.** Uses made-up demo shows and a public test video. The real catalogue/playback addresses come from the official app's remote config, which I have not touched |
-| Installed on your Xbox | **Not yet** - needs your steps in section 3 |
+| **Web version (runs in the Xbox's Edge browser - NO Developer Mode)** | **Built and tested here** (17 unit tests + a keyboard-driven browser test with screenshots). Not tried on a real Xbox yet |
+| Xbox app version (UWP) | Builds and packages on GitHub's Windows machines, but installing it needs Xbox **Developer Mode** - see section 4 (I don't recommend it, given what happened last time) |
+| Live My5 connection (sign-in code, My List, resume) | Written and unit-tested against a fake server only. Never run against the real service |
+| Real TV catalogue + real video | **Not done.** Uses made-up demo shows and a public test video |
+| Your developer account (martypaz@hotmail.com) | Authorised - **only needed for section 4**, nothing more to buy |
 
-**What you'll see if you install it today:** an Xbox app with a TV-style interface (Home, Search, TV guide, My List,
-Settings, Player) showing invented demo shows and playing a test video. It proves the app shell works on your console.
-It is **not yet My5**.
-
----
-
-## 2. Getting the app build (no PC needed)
-
-GitHub builds the app for you every time code is pushed.
-
-1. On your phone open: **github.com/martypaz/high5** > **Actions** tab.
-2. Open the newest run named **CI** with a green tick on the branch `ccr-52cad7bd-nxyfdf`.
-3. Scroll to **Artifacts** and download **high5-xbox-sideload** (a ~58 MB zip). Save it to your phone.
-4. Unzip it (Files by Google, or any unzip app). Inside is the folder **`High5.Xbox_0.1.0.0_x64_Test`**:
-   - **`High5.Xbox_0.1.0.0_x64.appx`** - the app itself
-   - **`Dependencies/x64/`** - three support packages the app needs, **install these first**:
-     `Microsoft.VCLibs.x64.14.00.appx`, `Microsoft.NET.CoreRuntime.2.2.appx`, `Microsoft.NET.CoreFramework.Debug.2.2.appx`
-   - a `.cer` (the public test certificate) and some Windows PowerShell helper files you can ignore
-   - (the other folders `arm`, `ARM64`, `x86` are not needed for an Xbox)
-
-If the run shows a red cross, **don't worry - tell me and I'll fix it** (I can read the build log).
+**What you'll see today:** a TV-style app (Home with Continue watching, Search, TV guide, My List, Settings, Player) showing
+invented demo shows. It proves the interface works with a controller. It is **not yet My5**.
 
 ---
 
-## 3. Putting it on your Xbox
+## 2. Recommended: the web version (safe - nothing installed on your Xbox)
 
-### 3a. One-off accounts and costs
+It's an ordinary web page that opens in the Xbox's **Microsoft Edge**. No Dev Mode, no resets, nothing to uninstall.
+Controls: **D-pad / left stick** moves, **A** selects, **B** goes back.
 
-| What | Why | Cost |
-|---|---|---|
-| **Microsoft developer account** (Partner Center, "Windows & Xbox" individual) | Xbox "Developer Mode" needs one | A one-off registration fee, historically about **US$19** (check the current price when you sign up) |
-| An Xbox One / Series X|S on the **same Wi-Fi/network as your phone** | The app is installed over the network | - |
-| A free GitHub login (you already have one) | To download the build | Free |
+### 2a. It needs to live at a web address
+The Xbox has to reach the page, so it must be hosted. Pick one (all free, none need a PC):
 
-No PC, Visual Studio or Windows licence is needed for this route.
+**Option 1 - GitHub Pages from this repo** (easiest, *if* your GitHub plan allows Pages on private repos)
+1. On your phone: github.com/martypaz/high5 > **Settings** > **Pages** > Source: **GitHub Actions**.
+   If GitHub says Pages needs an upgrade for private repos, use Option 2.
+2. **Actions** tab > **Publish web app** > **Run workflow** (choose the branch `ccr-52cad7bd-nxyfdf`).
+3. When it finishes it shows the address, normally `https://martypaz.github.io/high5/`.
 
-### 3b. Turn on Developer Mode (once)
-1. On the Xbox open the **Microsoft Store**, search **"Dev Mode Activation"**, install it.
-2. Run it, sign in with the Microsoft account that has the developer account, and follow the prompts.
-   The console restarts into **Dev Home**.
-3. In Dev Home choose **Remote Access Settings**, tick **Enable Device Portal**, set a **username and password**, and
-   note the **IP address** shown (for example `192.168.1.50`).
-4. Note: while in Dev Mode your normal games/apps aren't reachable. You can leave Dev Mode again from the
-   Dev Mode Activation app ("Switch to retail mode").
+**Option 2 - a small separate public repo** (free on any plan; the site only contains demo data, no keys)
+1. Create a new **public** repo on GitHub called `high5-web` (empty).
+2. Tell me. I'll attach it, push the `web` folder there, and give you the Pages steps (one switch in Settings > Pages).
+   The address will be `https://martypaz.github.io/high5-web/`.
 
-### 3c. Install the app from your phone
-1. On the phone's browser go to `https://<xbox-ip>:11443` (accept the security warning - it's your own console).
-2. Sign in with the Device Portal username/password.
-3. Open **My games & apps** > **Add** (or "Install app").
-4. Upload the three **`Dependencies/x64`** packages first (VCLibs, CoreRuntime, CoreFramework), then `High5.Xbox_0.1.0.0_x64.appx`.
-5. Start it from **Dev Home > My games & apps**.
+### 2b. Open it on the Xbox
+1. Xbox **Microsoft Edge** > type the address (a controller keyboard is slow - try it on your **phone first** to check it works, then
+   use Edge's bookmark/pin so you only type it once; or cast/"send to console" from your phone if you have the Xbox app).
+2. The first screen is the sign-in screen; with demo data it signs itself in after a few seconds.
+3. Use the D-pad. Tell me anything that feels wrong (focus jumping, can't reach a button, text too small) - **a photo from the TV is perfect**.
 
-> **Honest caveat:** I could not test steps 3c on a real console. The package is signed with a throw-away test
-> certificate and uses the standard (non-"Native") .NET runtime, which works in Dev Mode but I haven't confirmed on your firmware. Some Xbox firmware only accepts packages that were deployed from Visual Studio. If the Device Portal
-> refuses the file, tell me exactly what message it shows - there are two fallbacks (a Visual Studio deployment from any
-> Windows PC, or I change the packaging settings).
-
-### 3d. If something doesn't work
-Take a **photo/screenshot of the error** and send it to me. Also useful: the Xbox **OS version** (Settings > System > Console info).
+> **Honest caveat:** I tested it in a desktop browser with a keyboard, not on an Xbox. Xbox Edge also has its own mouse-style cursor
+> mode; the page is built so both work, but I haven't confirmed it on your console. Protected (PlayReady) video isn't implemented in
+> the web version yet.
 
 ---
 
-## 4. If you ever get access to a Windows PC (optional, easier)
-
-Install, in this order:
-1. **Windows 10 or 11** (any edition).
-2. **Visual Studio 2022 Community** (free) with the **"Universal Windows Platform development"** workload.
-   - Inside the workload tick **Windows 10 SDK (10.0.19041.0)** and **C# and Visual Basic**.
-3. **.NET SDK 8** (only if you want to run the tests: `dotnet test High5.Core.sln`).
-4. **Git for Windows**.
-
-Then:
-```
-git clone https://github.com/martypaz/high5
-cd high5
-git checkout ccr-52cad7bd-nxyfdf
-```
-Open `src\High5.Xbox\High5.Xbox.csproj` in Visual Studio, choose **Release | x64 | Remote Machine**, enter the Xbox IP, and press F5.
+## 3. Getting the app files yourself (optional)
+GitHub builds everything automatically: github.com/martypaz/high5 > **Actions** > newest green **CI** run > **Artifacts**.
+* `high5-xbox-sideload` - the Xbox (UWP) package, only useful for section 4.
+* If a run shows a red cross, tell me - I can read the log and fix it.
 
 ---
 
-## 5. Making it real (the part that needs your decision)
+## 4. Optional: the Xbox app version (needs Developer Mode)
 
-To show **real My5 content** the app needs two values that My5's own app fetches when it starts. I have **not** put them in
-the repository and I haven't extracted or used them:
+You told me Developer Mode killed your Xbox last time and needed a reset. **I would not repeat that** unless the web version
+turns out to be unusable. I can't promise the same thing wouldn't happen; Developer Mode is an official Microsoft feature but
+I can't test it on your console. If you ever decide to try:
+* back up anything you care about first and make sure the console has all system updates;
+* your developer account (martypaz@hotmail.com) is already authorised, so there is no fee or sign-up;
+* the steps would be: Dev Mode Activation app > Dev Home > enable Device Portal > from your phone open `https://<xbox-ip>:11443` >
+  upload the three files in `Dependencies/x64` first, then `High5.Xbox_0.1.0.0_x64.appx`.
+* I haven't tested that install on a console. Tell me before you start and we'll go step by step.
 
+---
+
+## 5. Making it real (needs your decision)
+
+To show **real My5 content** the app needs two values that My5's own app fetches when it starts. I have **not** put them in the
+repository and I haven't extracted or used them:
 * the address of the user service (`userServiceBase`), and
 * the `platform` name the service expects.
 
-If you decide to go ahead (personal use, your own account), they go in a **local file that is never committed**:
-
+If you decide to go ahead (personal use, your own account), they would go in a **local file that is never committed**:
 ```json
 { "userServiceBase": "https://...", "platform": "..." }
 ```
-(`ClientConfig.FromJson` already reads this.) Things you should know before deciding:
-
-* Signing in the way the official app does uses **the official app's identity** on the server. A third-party app doing
-  that may break Channel 5's terms of use and could be blocked at any time. It's your call; tell me explicitly if you want
-  me to continue and how far.
-* Real video also needs the catalogue and playback services (not done yet) and **PlayReady** protected streams on Xbox.
-  I won't remove DRM or get around the UK-only / VPN checks.
-* The safe, fully legitimate alternative is to ask Channel 5 about partner/API access.
+Know before deciding:
+* Signing in like the official app uses **the official app's identity** on the server. A third-party app doing that may break
+  Channel 5's terms of use and could be blocked at any time. It's your call; tell me explicitly if you want me to continue and how far.
+* Real video also needs the catalogue and playback services (not done) and protected streams. I won't remove DRM or get around the
+  UK-only / VPN checks.
+* The fully legitimate alternative is to ask Channel 5 about partner/API access.
 
 ---
 
-## 6. What I installed on my side (so you know)
-
-Nothing on your devices. In my temporary cloud workspace I used: **REA** (the reverse-engineering toolkit you asked for),
-the **JADX** decompiler library, **androguard**, and **.NET 8**. GitHub's own Windows machines build the Xbox app.
-My test certificate is generated fresh on every build and is only used to sign the test package.
-
-## 7. Where everything is
+## 6. Where everything is
 
 | Path | What it is |
 |---|---|
 | `Martin Instructions.md` | This file |
-| `README.md` | Short project overview |
+| `web/` | **The web version** (static HTML/JS) - start here |
+| `src/High5.Core`, `src/High5.Xbox` | The Xbox (UWP) version and its tested logic |
 | `docs/analysis/my5-7.26.6.md` | What the reverse-engineering found |
-| `docs/XBOX-SETUP.md` | Technical Xbox/Visual Studio notes |
-| `src/High5.Core` | The app's logic (tested) |
-| `src/High5.Xbox` | The Xbox app (screens) |
-| `tests/High5.Core.Tests` | Automatic tests |
-| `.github/workflows/ci.yml` | The GitHub build recipe |
+| `.github/workflows/` | `ci.yml` builds + tests everything; `pages.yml` publishes the web version |
 
-## 8. Quick checklist for you
+## 7. Checklist
 
-- [ ] Open the Actions tab and confirm the latest CI run is green
-- [ ] Decide: do you want to get the Xbox developer account (one-off fee)?
-- [ ] Download `high5-xbox-sideload` and unzip it
-- [ ] Enable Dev Mode + Device Portal on the Xbox
-- [ ] Try the install from your phone (3c) and send me any error you see
-- [ ] Decide what to do about section 5 (real data) and tell me
-- [ ] Check/switch off the **link sharing** on the My5 APK file in your Google Drive (it was reachable without a login)
+- [ ] Pick a hosting option in 2a (or tell me which you prefer) - this is the next blocker
+- [ ] Open the web version on your phone, then on the Xbox Edge, and send me what you see
+- [ ] Decide what to do about section 5 (real data)
+- [ ] Switch off the **link sharing** on the My5 APK file in your Google Drive (it could be opened without a login)
+- [ ] Section 4 only if you ever want to - not needed
