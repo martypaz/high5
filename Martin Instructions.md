@@ -17,7 +17,7 @@ Written so you can follow it **from a phone**.
 | **Live search + show pages (read-only)** | **Built and tested in a real browser.** Real shows, series, episodes, lengths, ratings, availability dates. GET requests only, no account. Used in the web version |
 | Live sign-in, My List sync, resume sync | Written and unit-tested against a fake server only. Never run against the real service (the web version doesn't use them) |
 | **Channels** (Channel 5, ITVX, Demo - same screens and styling) | **Built.** Switch in the top bar ("Channel: ...") |
-| **ITVX channel** | **Experimental and untested.** Search only, built from the app's code. I have not been able to call ITV's servers, so **your browser makes the first real request** - see section 6 |
+| **ITVX channel** | **Paused - not working.** The search address built from the app's code answers "Not found" (tested from here and from your UK phone). The skill/analysis is done; the missing piece is the app's exact real request - see section 6 |
 | **Skill: read-apk-from-drive** | **Built and tested** (`.claude/skills/read-apk-from-drive`). Reads an APK from Drive and analyses it |
 | Poster images (tiles, show banner, episode thumbnails) | **Done** (read-only, loaded straight from the catalogue's image host) |
 | Home rails, TV guide, **video playback** | **Not done.** Home shows a simple page in live mode; episodes list details but can't be played |
@@ -101,14 +101,13 @@ The legitimate alternative to all of this is asking Channel 5 about partner acce
 
 ---
 
-## 6. Trying ITVX (you do the first call)
+## 6. ITVX status (paused)
 
-1. Open the app, tap the **Channel: ...** pill at the top, choose **ITVX**.
-2. Go to **Search**, type at least two letters, wait half a second.
-3. Either results appear (tell me!) or a red error line appears under the search box. **Send me a screenshot of that line**; the number in brackets (for example 401 or 403) tells me whether the service wants something this app can't provide.
-4. ITVX shows titles, pictures and episode counts only. Programme pages, playback and accounts are not built.
+What we learned: the search address and path match the app's code, the service needs no key or special header for search, and it is **not** the user-agent, your region or a browser rule. The
+service simply answers "Not found" to the request I can build. The exact difference (a parameter value or format) is not visible in the app's code.
 
-Ratings are not shown for ITVX (the search gives none) and the parental lock treats everything as 18, so a low age limit hides all ITVX results. That is deliberate.
+Options if you want to continue later: (a) I try a few parameter variants, with your go-ahead for each batch; (b) capture the ITVX app's real request from your phone with a network-inspection app
+(possible but fiddly, and the app may refuse it); (c) leave ITVX out. Channel 5 is the working channel. Nothing more is needed from you on this now.
 
 ## 7. Adding more channels later
 
@@ -132,5 +131,5 @@ Upload the next app's APK (or split-apks zip) to Drive and **paste me its share 
 - [ ] Open the web version on your phone, then on the Xbox Edge, and send me what you see
 - [ ] Decide what to do about section 5 (real data)
 - [ ] Switch off the **link sharing** on the My5 *and* ITVX APK files in your Google Drive (they could be opened without a login)
-- [ ] Try the ITVX channel (section 6) and send me what you see
+- [ ] Decide whether ITVX is worth more effort (section 6) - no action needed if not
 - [ ] Section 4 only if you ever want to - not needed

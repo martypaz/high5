@@ -69,3 +69,11 @@ Static findings that rule out hidden requirements: the app builds the search cli
 sets the base URL to `text_search_url` and calls `GET search`. Other services use an `apikey` header or a custom User-Agent; search does not.
 So the address and path match the app. What differs is unknown: a parameter value or format (the `featureSet` separator, the `broadcaster` value, `pretx`), the sandbox's region (probes came from a US data centre), or the service has moved.
 Next: with the owner's go-ahead, at most a few variants of the parameters; or the owner reports what their UK phone gets.
+
+## Update: also "Not found" from the owner's UK phone
+The same search URL opened directly in the owner's UK phone browser (no web page, so no CORS) also returned `Not found`. So it is **not** region, not the User-Agent (five identical probes
+including an Xbox-Edge-style request), not CORS. The request built from the app's code is not what the service expects.
+Checked statically and ruled out: a header or api key on the search client (plain client, no interceptor); a different base address from the remote app config (that file carries feature flags such as `amplitude-sdk`,
+`firebase-analytics`, not URLs); a different path (Retrofit `GET search`). Still unknown: the real value/format of `featureSet` and `broadcaster`, or whether another route or version prefix is used in practice.
+Guessing variants against a live third-party service is not something to do without the owner's say-so each time. The reliable next step would be to capture the app's actual request (not possible without a proxy on a device
+that trusts it) or to find another, documented route. Status: **ITVX channel paused.**
