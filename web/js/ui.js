@@ -1,5 +1,5 @@
 // High5 web - DOM layer: router, screens, D-pad / gamepad navigation, player.
-import { AgeRating, RATING_LABELS, LocalStore, createServices, HomeVM, ShowVM, SearchVM, AllSearchVM, RecentSearches, MyListVM, GuideVM, SignInVM, PlayerVM, progressOf } from './core.js';
+import { AgeRating, RATING_LABELS, LocalStore, createServices, HomeVM, ShowVM, SearchVM, AllSearchVM, RecentSearches, DeviceData, MyListVM, GuideVM, SignInVM, PlayerVM, progressOf } from './core.js';
 import { CHANNELS, pickChannel, findChannel } from './channels/index.js';
 
 // Channel = where the data comes from. All channels share this interface and stylesheet; a channel only supplies data.
@@ -285,6 +285,24 @@ async function renderChannels() {
       h('span', { class: 't' }, c.name), h('span', { class: 'g' }, c.blurb), c.id === channel.id ? h('span', { class: 'badge' }, 'Current') : (c.experimental ? h('span', { class: 'badge' }, 'Beta') : null)))));
 }
 
+/** Clear buttons that need a second tap (they delete the user's own lists). */
+function deviceRows() {
+  const data = new DeviceData(store), box = h('div');
+  const labels = { myList: ['My List', 'items'], recent: ['Recent searches', 'items'], cache: ['Remembered ITVX results', 'items'] };
+  const draw = () => {
+    const sum = data.summary();
+    box.replaceChildren(...Object.entries(labels).map(([part, [name]]) => {
+      const b = button(`Clear ${name.toLowerCase()}`, () => {
+        if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Tap again to confirm'; setTimeout(() => { if (b.isConnected && b.dataset.armed === '1') { b.dataset.armed = ''; b.textContent = `Clear ${name.toLowerCase()}`; } }, 4000); return; }
+        data.clear(part); toast(`${name} cleared`); draw();
+      });
+      b.disabled = !sum[part];
+      return h('div', { class: 'row' }, h('span', {}, `${name}: ${sum[part]}`), b);
+    }));
+  };
+  draw(); return box;
+}
+
 async function renderSettings() {
   const p = services.parental;
   const pin = h('input', { 'data-nav': true, type: 'password', inputmode: 'numeric', maxlength: '4', placeholder: '4-digit PIN', 'aria-label': 'PIN' });
@@ -299,6 +317,7 @@ async function renderSettings() {
     h('div', { class: 'row' }, pin, button('Set PIN', async () => { try { await p.setPin(pin.value); pin.value = ''; status.textContent = 'PIN saved.'; } catch (e) { status.textContent = e.message; } })),
     h('div', { class: 'row' }, rating), status,
     h('h2', {}, 'Channel'), h('p', { class: 'dim' }, `${channel.name}: ${channel.blurb}`), h('div', { class: 'row' }, nav({ class: 'btn', href: '#/channels' }, 'Change channel')),
+    h('h2', {}, 'On this device'), h('p', { class: 'dim' }, 'Everything below is stored only in this browser. Nothing is sent anywhere.'), deviceRows(),
     h('h2', {}, 'Account'), button('Sign out', async () => { await services.auth.signOut(); services.store.set('mock.signedIn', null); go('#/signin'); }));
 }
 

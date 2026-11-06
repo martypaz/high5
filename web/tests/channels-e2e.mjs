@@ -78,6 +78,13 @@ try {
   await page.waitForFunction(() => /Channel: ITVX/.test(document.querySelector('#channel-link')?.textContent ?? ''));
   await page.waitForFunction(() => document.querySelector('h1')?.textContent === 'Harbour Detectives');
   await page.waitForFunction(() => /Latest episode/.test(document.querySelector('main')?.innerText ?? ''));
+  // Settings > On this device: counts are shown, and clearing needs a second tap.
+  await page.goto(`http://127.0.0.1:${PORT}/#/settings`); await page.waitForFunction(() => /My List: 1/.test(document.querySelector('main')?.innerText ?? ''));
+  await page.getByRole('button', { name: 'Clear my list' }).click();
+  assert.match(await page.locator('main').innerText(), /My List: 1/);                                          // one tap changes nothing
+  await page.getByRole('button', { name: 'Tap again to confirm' }).click();
+  await page.waitForFunction(() => /My List: 0/.test(document.querySelector('main')?.innerText ?? ''));
+  assert.equal(await page.getByRole('button', { name: 'Clear my list' }).isDisabled(), true);
   // Scenario 2: what a CORS-blocked request looks like to the page: the normal fetch() fails, but a plain "no-cors" repeat of the same
   // GET goes through (the server is reachable; the browser just refuses to hand over the reply). We tell the two requests apart by their
   // Accept header: the app's JSON request sends `application/json`, the reachability check sends none.

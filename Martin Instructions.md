@@ -22,6 +22,7 @@ Written so you can follow it **from a phone**.
 | **My List** (works across channels) and **Search: This channel / All channels** | **Done and tested.** My List is saved on your device with a small snapshot of each show, so an ITVX item opens from the Channel 5 or Demo view (the app switches channel for you). "All channels" asks Channel 5 and ITVX together and shows results grouped by channel; if one is down it says so and still shows the other |
 | **Browse by category** (Channel 5) | **Done and tested** (checked once against the real service). Browse tab: category, then sub-category, then shows 20 at a time with "Show more". Hidden for channels that don't support it |
 | **Recent searches** (tap to repeat) and a **My List rail on the live Home page** | **Done.** Kept only on your device (the Search page has a Clear button) |
+| **Settings > On this device**: see and clear My List, recent searches and remembered ITVX results | **Done** (needs a second tap to confirm) |
 | **Install on phone / works offline**, Try-again buttons | **Done.** In Chrome/Edge use the menu > *Add to Home screen* / *Install app*; it then opens without a network (Demo works fully offline; live channels need internet). Browser tests now run on GitHub too (CI) |
 | Poster images (tiles, show banner, episode thumbnails) | **Done** (read-only, loaded straight from the catalogue's image host) |
 | Home rails, TV guide, **video playback** | **Not done.** Home shows a simple page in live mode; episodes list details but can't be played |

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AgeRating, MemoryStore, LocalStore, ParentalControl, MockCatalogue, MockLive, MockMyList, MockResume, MockPlayback, MockAuth,
-  HomeVM, ShowVM, SearchVM, AllSearchVM, RecentSearches, MyListVM, GuideVM, SignInVM, PlayerVM, isFinished, progressOf } from '../js/core.js';
+  HomeVM, ShowVM, SearchVM, AllSearchVM, RecentSearches, DeviceData, MyListVM, GuideVM, SignInVM, PlayerVM, isFinished, progressOf } from '../js/core.js';
 
 const setup = () => {
   const store = new MemoryStore(), catalogue = new MockCatalogue();
@@ -219,4 +219,14 @@ test('recent searches: newest first, no repeats (any case), trimmed, capped at 8
   store.set('recent', '{oops'); assert.deepEqual(r.get(), []);
   store.set('recent', JSON.stringify([1, null, '', 'ok'])); assert.deepEqual(r.get(), ['ok']);
   r.clear(); assert.deepEqual(r.get(), []);
+});
+
+test('device data: counts what is kept and wipes one part at a time', () => {
+  const store = new MemoryStore(), d = new DeviceData(store);
+  assert.deepEqual(d.summary(), { myList: 0, recent: 0, cache: 0 });
+  store.set('mylist2', JSON.stringify([{ id: 'a' }, { id: 'b' }])); store.set('mylist', JSON.stringify(['x'])); store.set('recent', JSON.stringify(['q'])); store.set('itvx.seen', '{bad'); store.set('pin', 'keep');
+  assert.deepEqual(d.summary(), { myList: 3, recent: 1, cache: 0 });
+  d.clear('myList'); assert.deepEqual(d.summary(), { myList: 0, recent: 1, cache: 0 }); assert.equal(store.get('pin'), 'keep');   // other settings untouched
+  d.clear('recent'); d.clear('cache'); assert.equal(store.get('itvx.seen'), null);
+  assert.throws(() => d.clear('pin'), /Unknown/); assert.throws(() => d.clear('__proto__'), /Unknown/);
 });

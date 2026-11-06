@@ -169,6 +169,19 @@ export class RecentSearches {
   clear() { this.store.set(this.key, null); }
 }
 
+/** What this app keeps on the device, and a way to wipe each part. (Nothing is ever sent anywhere by this app.) */
+export class DeviceData {
+  static PARTS = Object.freeze({ myList: ['mylist2', 'mylist'], recent: ['recent'], cache: ['itvx.seen'] });
+  constructor(store) { this.store = store; }
+  _count(key) { try { const v = JSON.parse(this.store.get(key) ?? '[]'); return Array.isArray(v) ? v.length : 0; } catch { return 0; } }
+  summary() { return { myList: this._count('mylist2') + this._count('mylist'), recent: this._count('recent'), cache: this._count('itvx.seen') }; }
+  clear(part) {
+    const keys = Object.hasOwn(DeviceData.PARTS, part) ? DeviceData.PARTS[part] : null;
+    if (!keys) throw new Error('Unknown data type.');
+    for (const k of keys) this.store.set(k, null);
+  }
+}
+
 export class MockResume {
   constructor(store) { this.store = store; }
   _all() { try { return JSON.parse(this.store.get('resume') ?? '{}'); } catch { return {}; } }
