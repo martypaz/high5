@@ -60,8 +60,12 @@ try {
   await page.screenshot({ path: `${out}/c5-all-channels.png` });
   await page.reload(); await page.waitForSelector('input[type=search]');
   assert.equal(await page.getByRole('button', { name: 'All channels' }).getAttribute('aria-pressed'), 'true');   // the choice is remembered
+  assert.equal(await page.getByRole('group', { name: 'Recent searches' }).getByRole('button', { name: 'harbour' }).count(), 1);   // recent searches are remembered on this device
+  await page.getByRole('group', { name: 'Recent searches' }).getByRole('button', { name: 'harbour' }).click(); await page.waitForSelector('main h2');   // and re-run with one tap
   await page.getByRole('button', { name: 'ITVX', exact: true }).click();
   assert.equal(await page.getByRole('button', { name: 'ITVX', exact: true }).getAttribute('aria-pressed'), 'true');
+  await page.goto(`http://127.0.0.1:${PORT}/#/home`); await page.waitForFunction(() => /Your list/.test(document.querySelector('main')?.innerText ?? ''));
+  assert.match(await page.locator('main section .tile').first().innerText(), /Harbour Detectives/);       // the live Home page shows My List
   await page.goto(`http://127.0.0.1:${PORT}/#/mylist`); await page.waitForSelector('.tile');
   assert.match(await page.locator('.tile').first().innerText(), /Harbour Detectives/);
   // Switch to Demo, then open the ITVX item from My List: the app changes channel and the show page still opens (ITVX remembered its search).

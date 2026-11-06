@@ -1,5 +1,5 @@
 // High5 web - DOM layer: router, screens, D-pad / gamepad navigation, player.
-import { AgeRating, RATING_LABELS, LocalStore, createServices, HomeVM, ShowVM, SearchVM, AllSearchVM, MyListVM, GuideVM, SignInVM, PlayerVM, progressOf } from './core.js';
+import { AgeRating, RATING_LABELS, LocalStore, createServices, HomeVM, ShowVM, SearchVM, AllSearchVM, RecentSearches, MyListVM, GuideVM, SignInVM, PlayerVM, progressOf } from './core.js';
 import { CHANNELS, pickChannel, findChannel } from './channels/index.js';
 
 // Channel = where the data comes from. All channels share this interface and stylesheet; a channel only supplies data.
@@ -12,6 +12,7 @@ services.mode = channel.id;
 const vms = {
   home: new HomeVM(services), show: new ShowVM(services), search: new SearchVM(services), myList: new MyListVM(services), guide: new GuideVM(services),
 };
+const recent = new RecentSearches(store);
 const view = document.getElementById('view');
 let cleanup = null;           // per-screen teardown (timers, abort controllers, players)
 
@@ -133,10 +134,12 @@ if (!memoryRouter) addEventListener('hashchange', route);
 // ---------- screens ----------
 async function renderHome() {
   if (!caps.home) {
+    const mine = (await vms.myList.load()).slice(0, 12);
     view.replaceChildren(h('h1', {}, 'Home'),
       h('p', {}, `${channel.name}: ${channel.blurb}`),
-      h('p', { class: 'dim' }, 'Search and show pages work. Browse rails, the TV guide and playback are not built yet.'),
-      h('div', { class: 'row' }, nav({ class: 'btn primary', href: '#/search' }, 'Search shows'), caps.browse ? nav({ class: 'btn', href: '#/browse' }, 'Browse by category') : '', nav({ class: 'btn', href: '#/mylist' }, 'My List')));
+      h('p', { class: 'dim' }, 'Search, browse and show pages work. The TV guide and playback are not built yet.'),
+      h('div', { class: 'row' }, nav({ class: 'btn primary', href: '#/search' }, 'Search shows'), caps.browse ? nav({ class: 'btn', href: '#/browse' }, 'Browse by category') : '', nav({ class: 'btn', href: '#/mylist' }, 'My List')),
+      mine.length ? h('section', {}, h('h2', {}, 'Your list'), h('div', { class: 'grid' }, mine.map((i) => crossTile(i)))) : '');
     return;
   }
   const { rails, continueWatching } = await vms.home.load();
@@ -190,6 +193,11 @@ async function renderSearch() {
   let scope = canAll && store.get('searchScope') === 'all' ? 'all' : 'channel';
   const results = h('div'), status = h('p', { class: 'dim' });
   const input = h('input', { 'data-nav': true, type: 'search', placeholder: 'Search shows', 'aria-label': 'Search', autocomplete: 'off' });
+  const chips = h('div', { class: 'row', role: 'group', 'aria-label': 'Recent searches' });
+  const drawChips = () => {
+    const list = input.value.trim() ? [] : recent.get();
+    chips.replaceChildren(...list.map((q) => button(q, () => { input.value = q; input.dispatchEvent(new Event('input')); })), ...(list.length ? [button('Clear', () => { recent.clear(); drawChips(); }, 'btn dim')] : []));
+  };
   const hint = () => (isLive ? `Type at least two letters to search ${scope === 'all' ? 'all channels' : channel.name}.` : 'Type to search shows and genres.');
   status.textContent = hint();
   const run = async () => {
@@ -200,6 +208,7 @@ async function renderSearch() {
         if (q.length < 2) { results.replaceChildren(); status.textContent = q ? 'Type at least two letters.' : 'Type to search.'; return; }
         const r = await allSearchVM().search(q);
         if (r.stale) return;
+        recent.add(q);
         results.replaceChildren(...r.groups.map((g) => h('section', {}, h('h2', {}, g.name), g.results.length ? h('div', { class: 'grid' }, g.results.map((i) => crossTile(i, false))) : h('p', { class: 'dim' }, `No results on ${g.name}.`))),
           ...r.failures.map((f) => h('p', { class: 'error' }, `${f.name}: ${f.message}`)));
         status.textContent = '';
@@ -207,18 +216,20 @@ async function renderSearch() {
       }
       const r = await vms.search.search(input.value);
       if (r.stale) return;
+      if (r.query.trim().length >= 2) recent.add(r.query);
       results.replaceChildren(h('div', { class: 'grid' }, r.results.map((i) => tile(i, `#/show/${encodeURIComponent(i.id)}`))));
       status.textContent = !r.query.trim() ? 'Type to search.' : r.query.trim().length < 2 && isLive ? 'Type at least two letters.' : r.results.length ? '' : 'No results.';
     } catch (e) { status.className = 'error'; status.textContent = e.message; results.replaceChildren(); }
   };
-  let timer; input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, isLive ? 400 : 0); });   // be gentle on a third-party server
+  let timer; input.addEventListener('input', () => { drawChips(); clearTimeout(timer); timer = setTimeout(run, isLive ? 400 : 0); });   // be gentle on a third-party server
   cleanup = () => clearTimeout(timer);
   const chooseScope = (v) => () => { scope = v; store.set('searchScope', v); mark(); results.replaceChildren(); status.className = 'dim'; status.textContent = hint(); if (input.value.trim()) { clearTimeout(timer); run(); } };
   const here = button(channel.name, chooseScope('channel')), all = button('All channels', chooseScope('all'));
   const mark = () => { here.setAttribute('aria-pressed', String(scope === 'channel')); all.setAttribute('aria-pressed', String(scope === 'all')); };
   mark();
   view.replaceChildren(h('h1', {}, 'Search'), h('div', { class: 'search-box' }, input, button('Search', () => { clearTimeout(timer); run(); })),
-    canAll ? h('div', { class: 'row', role: 'group', 'aria-label': 'Where to search' }, here, all) : '', status, results);
+    canAll ? h('div', { class: 'row', role: 'group', 'aria-label': 'Where to search' }, here, all) : '', chips, status, results);
+  drawChips();
 }
 
 /** Tile for an item that may belong to another channel; clicking one from elsewhere switches channel first (the page reloads once). */

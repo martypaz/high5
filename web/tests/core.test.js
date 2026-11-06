@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AgeRating, MemoryStore, LocalStore, ParentalControl, MockCatalogue, MockLive, MockMyList, MockResume, MockPlayback, MockAuth,
-  HomeVM, ShowVM, SearchVM, AllSearchVM, MyListVM, GuideVM, SignInVM, PlayerVM, isFinished, progressOf } from '../js/core.js';
+  HomeVM, ShowVM, SearchVM, AllSearchVM, RecentSearches, MyListVM, GuideVM, SignInVM, PlayerVM, isFinished, progressOf } from '../js/core.js';
 
 const setup = () => {
   const store = new MemoryStore(), catalogue = new MockCatalogue();
@@ -208,4 +208,15 @@ test('search across channels: grouped, tagged, parental-filtered, one failure do
   const vm2 = new AllSearchVM({ parental, sources: [slow] });
   const first = vm2.search('old'); const second = await vm2.search('new'); release();
   assert.equal(second.stale, false); assert.equal((await first).stale, true);
+});
+
+test('recent searches: newest first, no repeats (any case), trimmed, capped at 8, ignores junk, can be cleared', () => {
+  const store = new MemoryStore(), r = new RecentSearches(store);
+  for (const q of ['a', ' ', 'ab', 'Harbour  Bake', 'cd', 'harbour bake', 'e'.repeat(100)]) r.add(q);
+  assert.deepEqual(r.get(), ['e'.repeat(60), 'harbour bake', 'cd', 'ab']);
+  for (let i = 0; i < 12; i++) r.add('query ' + i);
+  assert.equal(r.get().length, 8); assert.equal(r.get()[0], 'query 11');
+  store.set('recent', '{oops'); assert.deepEqual(r.get(), []);
+  store.set('recent', JSON.stringify([1, null, '', 'ok'])); assert.deepEqual(r.get(), ['ok']);
+  r.clear(); assert.deepEqual(r.get(), []);
 });

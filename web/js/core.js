@@ -157,6 +157,18 @@ export class MockMyList {
   async remove(id) { this._save(this._items().filter((i) => !(i.channelId === this.channelId && i.id === String(id)))); }
 }
 
+/** Last few things searched for, kept on this device only (never sent anywhere). Newest first, no repeats, at most 8. */
+export class RecentSearches {
+  constructor(store, key = 'recent', max = 8) { Object.assign(this, { store, key, max }); }
+  get() { try { const v = JSON.parse(this.store.get(this.key) ?? '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string' && x.trim()).slice(0, this.max) : []; } catch { return []; } }
+  add(query) {
+    const q = String(query ?? '').trim().replace(/\s+/g, ' ').slice(0, 60);
+    if (q.length < 2) return;
+    this.store.set(this.key, JSON.stringify([q, ...this.get().filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, this.max)));
+  }
+  clear() { this.store.set(this.key, null); }
+}
+
 export class MockResume {
   constructor(store) { this.store = store; }
   _all() { try { return JSON.parse(this.store.get('resume') ?? '{}'); } catch { return {}; } }
