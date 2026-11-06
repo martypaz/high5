@@ -33,7 +33,7 @@ namespace High5.Xbox
         {
             InitializeComponent();
             // Xbox: gamepad/remote only - never switch to the mouse-mode cursor.
-            RequiresPointer = RequiresPointer.Never;
+            RequiresPointerMode = ApplicationRequiresPointerMode.WhenRequested;
         }
 
         protected override void OnLaunched(LaunchActivatedEventArgs e)
