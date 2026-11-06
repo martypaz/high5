@@ -59,3 +59,13 @@ The ITVX channel's first search from a web page failed with the app's generic "c
 network and a server that does not allow web pages to read its replies (CORS) look identical to the page. The app now repeats the failed GET once in
 `no-cors` mode to tell them apart and shows a specific message. If it reports a blocked reply, ITVX cannot work as a pure web page (the native app is not
 subject to that rule); the options are a native client, a proxy (needs the owner's explicit go-ahead and has terms implications), or leaving the channel out.
+
+## Diagnostic probes (2026-11-06, approved by the owner; anonymous GETs, nothing else)
+Question: is the web channel failing because of the User-Agent? The same search request was sent four ways: curl's default UA, a plain `High5/1.0`, a stock mobile Chrome UA,
+and Chrome UA plus `Origin: https://martypaz.github.io`.
+Result: **all four got an identical `404 Not found`** (plain text, 9 bytes; `server: istio-envoy`, fronted by CloudFront). No `access-control-*` headers on any of them.
+Conclusions: the User-Agent makes no difference; the failure the owner saw in a browser is a 404 without CORS headers (which a page can only report as a failed request), not a block on browsers.
+Static findings that rule out hidden requirements: the app builds the search client from the *plain* `OkHttpClientProvider.a()` (cookie jar only, **no header interceptor, no api key**),
+sets the base URL to `text_search_url` and calls `GET search`. Other services use an `apikey` header or a custom User-Agent; search does not.
+So the address and path match the app. What differs is unknown: a parameter value or format (the `featureSet` separator, the `broadcaster` value, `pretx`), the sandbox's region (probes came from a US data centre), or the service has moved.
+Next: with the owner's go-ahead, at most a few variants of the parameters; or the owner reports what their UK phone gets.

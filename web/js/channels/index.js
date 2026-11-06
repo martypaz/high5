@@ -20,7 +20,7 @@ export const CHANNELS = Object.freeze([
   { id: 'channel5', name: 'Channel 5', kind: 'live', blurb: 'Search and show pages from the real catalogue (read-only).',
     capabilities: { search: true, show: true, images: true, home: false, guide: false, playback: false }, create: () => new Channel5Catalogue() },
   { id: 'itvx', name: 'ITVX', kind: 'live', experimental: true,
-    blurb: 'Experimental: search only. Built from the app code and not yet tested against the live service.',
+    blurb: 'Experimental and not working yet: the search request built from the app code is answered with 404. Needs more analysis.',
     capabilities: { search: true, show: true, images: true, home: false, guide: false, playback: false }, create: () => new ItvxCatalogue() },
   { id: 'demo', name: 'Demo', kind: 'demo', blurb: 'Invented shows. Works offline.',
     capabilities: { search: true, show: true, images: false, home: true, guide: true, playback: true }, create: () => new DemoCatalogue() },

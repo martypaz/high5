@@ -129,4 +129,5 @@ With the user's go-ahead for *this* service: fetch the public config document on
 | Hosts list shows only SDKs | The back end address is in `resources.txt` or in a remote config document, not in code strings. |
 | Interface/class names look like `Ff.a` | Obfuscated. Use `Decompile.java --contains` with a known string or `'Api.kt */'` (Step 5.3). |
 | Config says `<withheld>` for a value you need | That is a credential. Stop and tell the user; it is their decision, never yours. |
+| A copied request gets `404`/`403` from the service | The address or parameters differ from the app's. The User-Agent rarely matters (test once if the user asks). Re-read how the app builds the request (client provider, interceptors, parameter formatting). A 404 carries no CORS headers, so a browser shows it as a network/CORS failure: do not conclude "blocked" without a server-side check. |
 | `find_endpoints.py` prints nothing | The API classes are obfuscated or in another package; list classes with `--list` and look for `retrofit2.http` imports. |
