@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ItvxCatalogue, mapResult, safeImageUrl, ITVX } from '../js/channels/itvx.js';
+import { ItvxCatalogue, mapResult, safeImageUrl, parseIsoDuration, ITVX } from '../js/channels/itvx.js';
 import { SearchVM, ParentalControl, MemoryStore } from '../js/core.js';
 import { findChannel } from '../js/channels/index.js';
 
@@ -90,8 +90,30 @@ test('show page is built from the search result; unknown ids give null', async (
   assert.equal(await cat.getShow('wk99p9x'), null);            // nothing searched yet
   await cat.search('harbour');
   const s = await cat.getShow('wk99p9x');
-  assert.equal(s.title, 'Harbour Detectives'); assert.deepEqual(s.episodes, []); assert.equal(s.synopsis, 'A made-up synopsis.'); assert.ok(s.bannerUrl);
+  assert.equal(s.title, 'Harbour Detectives'); assert.equal(s.synopsis, 'A made-up synopsis.'); assert.ok(s.bannerUrl);
   assert.equal(await cat.getShow('nope'), null); assert.equal(await cat.getShow(undefined), null);
+  assert.ok(!('_latest' in s));                                                  // internal bookkeeping never leaks into the page
+});
+
+test('ITVX show page lists the latest episode and says the rest cannot be read; films and specials list themselves', async () => {
+  const cat = new ItvxCatalogue({ fetchFn: fakeFetch(RESPONSE) }); await cat.search('harbour');
+  const s = await cat.getShow('wk99p9x');
+  assert.equal(s.episodes.length, 1); assert.equal(s.episodes[0].id, 'e1'); assert.equal(s.episodes[0].title, 'Latest episode');
+  assert.equal(s.episodes[0].showId, 'wk99p9x'); assert.equal(s.episodes[0].available, true); assert.ok(s.episodes[0].imageUrl);
+  assert.match(s.episodesNote, /3 available/);
+  const film = await cat.getShow('lysc9m');
+  assert.equal(film.episodes.length, 1); assert.equal(film.episodes[0].title, 'Orbit Kids: The Movie'); assert.equal(film.episodes[0].durationSeconds, 5400); assert.equal(film.episodesNote, '');
+  const special = await cat.getShow('p99b9tx');
+  assert.equal(special.episodes.length, 1); assert.equal(special.episodes[0].title, 'Wild Britain Special');
+  const one = new ItvxCatalogue({ fetchFn: fakeFetch({ results: [prog('one1', 'Single', { totalAvailableEpisodes: 1 })] }) }); await one.search('si');
+  assert.equal((await one.getShow('one1')).episodesNote, '');
+  const none = new ItvxCatalogue({ fetchFn: fakeFetch({ results: [prog('x1', 'NoEp', { latestAvailableEpisode: { episodeCCId: '../bad' } })] }) }); await none.search('no');
+  assert.deepEqual((await none.getShow('x1')).episodes, []);                    // unsafe episode id is dropped
+});
+
+test('ISO durations parse; junk gives 0', () => {
+  assert.equal(parseIsoDuration('PT1H30M'), 5400); assert.equal(parseIsoDuration('PT45M'), 2700); assert.equal(parseIsoDuration('PT30S'), 30);
+  for (const b of [undefined, '', 'abc', 'P1D', null]) assert.equal(parseIsoDuration(b), 0);
 });
 
 test('registered as a beta, search-only channel and works with the shared view-models', async () => {

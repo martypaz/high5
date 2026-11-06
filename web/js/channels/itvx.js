@@ -34,6 +34,12 @@ export function safeImageUrl(raw, width = 640, height = 360) {
   } catch { return null; }
 }
 
+/** "PT1H30M" -> 5400 seconds; anything unparseable -> 0. */
+export function parseIsoDuration(v) {
+  const m = /^P(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)$/.exec(String(v ?? ''));
+  return m ? Math.round(num(m[1]) * 3600 + num(m[2]) * 60 + num(m[3])) : 0;
+}
+
 /** Maps one search result to a Card, or null for results we do not show (live channels, pre-transmission items, unknown types). */
 export function mapResult(r) {
   const d = r?.data; if (!d || typeof d !== 'object') return null;
@@ -56,6 +62,8 @@ export function mapResult(r) {
     description: str(d.synopsis).trim(),
     imageUrl: safeImageUrl(d.imageHref) || safeImageUrl(d.tileImageHref) || safeImageUrl(le.imageHref) || safeImageUrl(le.tileImageHref) || safeImageUrl(d.image),
     rating: itvxRatingFromCode(undefined), ratingKnown: false,
+    // Kept for the show page: the search result is all the data a web page can get (see getShow).
+    _latest: { episodeId: str(le.episodeCCId), total: eps, kind, durationSeconds: parseIsoDuration(d.duration), imageUrl: safeImageUrl(le.tileImageHref) || safeImageUrl(le.imageHref) },
   };
 }
 
@@ -77,11 +85,26 @@ export class ItvxCatalogue {
     return cards;
   }
 
-  /** Minimal show page built from the search result; episodes need other APIs this adapter does not use yet. */
+  /**
+   * Show page built from the search result. ITVX keeps its full episode lists behind a GraphQL service that answers a browser's permission
+   * check with 404 (no CORS), so a web page cannot read them. What the search result does carry is the newest episode and the episode count,
+   * so that is what we list, with a note saying so.
+   */
   async getShow(id) {
     const c = this._seen.get(String(id ?? ''));
     if (!c) return null;
-    return { ...c, synopsis: c.description || 'More details are not available for this channel yet.', bannerUrl: c.imageUrl, ratingKnown: false, episodes: [] };
+    const { _latest: l, ...card } = c;
+    const total = l?.total ?? 0;
+    let episodes = [], note = '';
+    if (l?.kind === 'film' || (!l?.episodeId && total === 0)) {
+      episodes = [{ id: card.id, showId: card.id, showTitle: card.title, title: card.title, season: 1, episode: 1, synopsis: card.description, durationSeconds: l?.durationSeconds ?? 0,
+        rating: card.rating, available: true, imageUrl: card.imageUrl, hasSubtitles: false }];
+    } else if (safeId(l?.episodeId)) {
+      episodes = [{ id: l.episodeId, showId: card.id, showTitle: card.title, title: 'Latest episode', season: 1, episode: 1,
+        synopsis: total > 1 ? `The newest of ${total} available episodes.` : 'The only available episode.', durationSeconds: 0, rating: card.rating, available: true, imageUrl: l.imageUrl || card.imageUrl }];
+      if (total > 1) note = `Only the latest episode is listed. ITVX has ${total} available; its full episode list cannot be read from a web page.`;
+    }
+    return { ...card, synopsis: card.description || 'More details are not available for this channel yet.', bannerUrl: card.imageUrl, ratingKnown: false, episodes, episodesNote: note };
   }
 
   async getEpisode() { return null; }

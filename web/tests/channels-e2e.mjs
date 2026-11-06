@@ -41,7 +41,7 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('.tile img.poster')].some((i) => i.complete && i.naturalWidth > 0));
   await page.screenshot({ path: `${out}/c2-itvx-search.png` });
   await page.locator('.grid .tile').first().click(); await page.waitForSelector('h1');
-  assert.match(await page.locator('h1').innerText(), /Harbour Detectives/); assert.match(await page.locator('main').innerText(), /No episodes are listed|4 episodes available/); assert.match(await page.locator('main').innerText(), /A made-up synopsis/);
+  assert.match(await page.locator('h1').innerText(), /Harbour Detectives/); assert.match(await page.locator('main').innerText(), /Latest episode|4 episodes available/); assert.match(await page.locator('main').innerText(), /A made-up synopsis/);
   assert.match(await page.locator('main').innerText(), /Playback is not available/);
   await page.screenshot({ path: `${out}/c3-itvx-show.png` });
   assert.ok(external.some((r) => r.startsWith('GET textsearch.prd.oasvc.itv.com/search')), 'the search request was made (and answered by the stub)');

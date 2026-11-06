@@ -17,7 +17,7 @@ Written so you can follow it **from a phone**.
 | **Live search + show pages (read-only)** | **Built and tested in a real browser.** Real shows, series, episodes, lengths, ratings, availability dates. GET requests only, no account. Used in the web version |
 | Live sign-in, My List sync, resume sync | Written and unit-tested against a fake server only. Never run against the real service (the web version doesn't use them) |
 | **Channels** (Channel 5, ITVX, Demo - same screens and styling) | **Built.** Switch in the top bar ("Channel: ...") |
-| **ITVX channel** | **Beta - search works** (real results with genres, descriptions and pictures). No episodes, home rails or playback. Tested here against the live service and in a real browser |
+| **ITVX channel** | **Beta - search works** (real results with genres, descriptions and pictures). Show pages list the latest episode only (ITVX keeps full episode lists where a web page can't read them). No home rails or playback. Tested here against the live service and in a real browser |
 | **Skill: read-apk-from-drive** | **Built and tested** (`.claude/skills/read-apk-from-drive`). Reads an APK from Drive and analyses it |
 | Poster images (tiles, show banner, episode thumbnails) | **Done** (read-only, loaded straight from the catalogue's image host) |
 | Home rails, TV guide, **video playback** | **Not done.** Home shows a simple page in live mode; episodes list details but can't be played |
@@ -107,7 +107,7 @@ It works. The earlier "Not found" was my mistake: the app always sends two value
 the service answered. It also allows web pages to read its answers, so the web version can use it directly.
 
 Try it: tap **Channel: ...** → **ITVX** → **Search**. You get titles, genres, descriptions and pictures. ITVX results show no age rating (the search gives none), so a low age limit hides them.
-What is missing: episodes (ITVX uses other services for programme pages), Home rails, the TV guide, playback and accounts. Each would need its own go-ahead.
+Show pages list each programme's **latest episode** and say how many exist; ITVX's full episode lists sit behind a service that refuses web pages (it answers the browser's permission check with 404), so I could not add them without pretending to be the official app, which I won't do. What is missing: full episode lists, Home rails, the TV guide, playback and accounts. Each would need its own go-ahead.
 
 ## 7. Adding more channels later
 

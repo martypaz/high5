@@ -156,7 +156,7 @@ async function renderShow(id) {
   const eps = h('div'), listBtn = button(inList ? 'Remove from My List' : 'Add to My List', async () => {
     inList = await vm.toggleMyList(id); listBtn.textContent = inList ? 'Remove from My List' : 'Add to My List'; toast(inList ? 'Added to My List' : 'Removed from My List');
   });
-  const seasonBtns = v.seasons.map((s) => button(`Series ${s}`, () => { season = s; drawEps(); }));
+  const seasonBtns = v.seasons.length > 1 ? v.seasons.map((s) => button(`Series ${s}`, () => { season = s; drawEps(); })) : [];
   const markSeasons = () => seasonBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(v.seasons[i] === season)));
   const drawEps = () => { markSeasons(); eps.replaceChildren(...v.episodesFor(season).map((e) => {
     if (!caps.playback) {   // read-only channel: details only, no playback
@@ -173,7 +173,8 @@ async function renderShow(id) {
   const sub = [v.show.genre, ...(v.show.subgenres ?? []), v.show.channel ? `Channel ${v.show.channel}` : '', v.show.ratingKnown === false ? '' : RATING_LABELS[v.show.rating]].filter(Boolean).join(' · ');
   view.replaceChildren(
     poster(v.show.bannerUrl, 'banner'), h('h1', {}, v.show.title), h('p', { class: 'dim' }, sub), h('p', {}, v.show.synopsis),
-    h('div', { class: 'row' }, playControl, listBtn, ...seasonBtns), v.show.episodes.length ? eps : h('p', { class: 'dim' }, 'No episodes are listed for this show.'));
+    h('div', { class: 'row' }, playControl, listBtn, ...seasonBtns), v.show.episodesNote ? h('p', { class: 'dim' }, v.show.episodesNote) : null,
+    v.show.episodes.length ? eps : h('p', { class: 'dim' }, 'No episodes are listed for this show.'));
 }
 
 async function renderSearch() {
