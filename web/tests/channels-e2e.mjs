@@ -17,7 +17,7 @@ page.on('pageerror', (e) => errors.push(e.message));
 await page.route((u) => !['127.0.0.1', 'localhost'].includes(u.hostname), async (route) => {
   const url = route.request().url(); external.push(route.request().method() + ' ' + new URL(url).host + new URL(url).pathname);
   if (url.includes('textsearch.prd.oasvc.itv.com/search')) {
-    const mk = (id, t, extra = {}) => ({ contentType: 'programme', entityType: 'programme', data: { programmeCcid: id, programmeTitle: t, totalAvailableEpisodes: 4, tier: 'FREE', channelName: 'Channel X', imageHref: 'https://ovp.itv.com/v2/images/programme/abc/itv_hub/c/16x9?w={width}&h={height}', ...extra } });
+    const mk = (id, t, extra = {}) => ({ contentType: 'vod', entityType: 'programme', data: { programmeCCId: id, programmeTitle: t, synopsis: 'A made-up synopsis.', genre: ['Drama'], totalAvailableEpisodes: 4, tier: 'FREE', latestAvailableEpisode: { imageHref: 'https://ovp.itv.com/images/prXXXXXXX/XXXXXXX/itv_hub/rail/16x9?w={width}&h={height}&q={quality}' }, ...extra } });
     return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ results: [mk('1_1', 'Harbour Detectives'), mk('1_2', 'Orbit Kids', { tier: 'PAID' }), { contentType: 'live', entityType: 'channel', data: { channelName: 'Live One' } }] }) });
   }
   if (route.request().resourceType() === 'image') return route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64') });
@@ -28,7 +28,7 @@ try {
   await page.goto(`http://127.0.0.1:${PORT}/#/channels`); await page.waitForSelector('button.tile');
   const names = await page.locator('button.tile .t').allInnerTexts();
   assert.deepEqual(names, ['Channel 5', 'ITVX', 'Demo']); assert.match(await page.locator('#channel-link').innerText(), /Channel: Demo/);
-  assert.match(await page.locator('button.tile', { hasText: 'ITVX' }).innerText(), /Untested/);
+  assert.match(await page.locator('button.tile', { hasText: 'ITVX' }).innerText(), /Beta/);
   await page.screenshot({ path: `${out}/c1-channels.png` });
   await page.locator('button.tile', { hasText: 'ITVX' }).click(); await page.waitForLoadState('load'); await page.waitForSelector('#channel-link');
   await page.waitForFunction(() => /Channel: ITVX/.test(document.querySelector('#channel-link')?.textContent ?? ''));
@@ -41,7 +41,7 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll('.tile img.poster')].some((i) => i.complete && i.naturalWidth > 0));
   await page.screenshot({ path: `${out}/c2-itvx-search.png` });
   await page.locator('.grid .tile').first().click(); await page.waitForSelector('h1');
-  assert.match(await page.locator('h1').innerText(), /Harbour Detectives/); assert.match(await page.locator('main').innerText(), /No episodes are listed|4 episodes available/);
+  assert.match(await page.locator('h1').innerText(), /Harbour Detectives/); assert.match(await page.locator('main').innerText(), /No episodes are listed|4 episodes available/); assert.match(await page.locator('main').innerText(), /A made-up synopsis/);
   assert.match(await page.locator('main').innerText(), /Playback is not available/);
   await page.screenshot({ path: `${out}/c3-itvx-show.png` });
   assert.ok(external.some((r) => r.startsWith('GET textsearch.prd.oasvc.itv.com/search')), 'the search request was made (and answered by the stub)');

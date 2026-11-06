@@ -10,7 +10,7 @@
 // Episode { id, showId, showTitle, title, season, episode, synopsis, durationSeconds, rating, ratingCode?, available,
 //           availableUntilMs?, imageUrl?, advisory?, hasSubtitles? }
 // ratingKnown:false means the rating is only a safety default for the parental lock (fails closed at 4) and must not be shown.
-// `experimental: true` marks a channel that has not been verified against its live service; the Channels page says so.
+// `experimental: true` marks a channel still in beta (or not yet verified against its live service); the Channels page shows a "Beta" badge.
 // Capabilities tell the shared UI which screens make sense for this channel.
 import { Channel5Catalogue } from './channel5.js';
 import { ItvxCatalogue } from './itvx.js';
@@ -20,7 +20,7 @@ export const CHANNELS = Object.freeze([
   { id: 'channel5', name: 'Channel 5', kind: 'live', blurb: 'Search and show pages from the real catalogue (read-only).',
     capabilities: { search: true, show: true, images: true, home: false, guide: false, playback: false }, create: () => new Channel5Catalogue() },
   { id: 'itvx', name: 'ITVX', kind: 'live', experimental: true,
-    blurb: 'Experimental and not working yet: the search request built from the app code is answered with 404. Needs more analysis.',
+    blurb: 'Beta: search with pictures and descriptions. No episodes or playback yet.',
     capabilities: { search: true, show: true, images: true, home: false, guide: false, playback: false }, create: () => new ItvxCatalogue() },
   { id: 'demo', name: 'Demo', kind: 'demo', blurb: 'Invented shows. Works offline.',
     capabilities: { search: true, show: true, images: false, home: true, guide: true, playback: true }, create: () => new DemoCatalogue() },

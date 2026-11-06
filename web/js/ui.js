@@ -211,7 +211,7 @@ async function renderChannels() {
   const choose = (c) => () => { services.store.set('channel', c.id); services.store.set('source', null); location.reload(); };
   view.replaceChildren(h('h1', {}, 'Channels'), h('p', { class: 'dim' }, 'Every channel uses the same screens. A channel only supplies the shows.'),
     h('div', { class: 'grid' }, CHANNELS.map((c) => h('button', { class: 'tile', type: 'button', 'data-nav': true, 'aria-pressed': String(c.id === channel.id), onclick: choose(c) },
-      h('span', { class: 't' }, c.name), h('span', { class: 'g' }, c.blurb), c.id === channel.id ? h('span', { class: 'badge' }, 'Current') : (c.experimental ? h('span', { class: 'badge' }, 'Untested') : null)))));
+      h('span', { class: 't' }, c.name), h('span', { class: 'g' }, c.blurb), c.id === channel.id ? h('span', { class: 'badge' }, 'Current') : (c.experimental ? h('span', { class: 'badge' }, 'Beta') : null)))));
 }
 
 async function renderSettings() {

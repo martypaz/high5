@@ -1,12 +1,11 @@
-// High5 web - channel: ITVX (ITV). EXPERIMENTAL, SEARCH ONLY.
+// High5 web - channel: ITVX (ITV). BETA, SEARCH ONLY.
 //
-// Built from static analysis of the Android app (ITVX 17.5.0): its bundled application.properties names the text-search host, and the
-// decompiled SearchApi/SearchService/SearchResponse classes give the request parameters and the response fields. It has NOT been run
-// against the live service from here. The first real request is made by the user's own browser; if the service wants a key, a header or
-// different parameters, the app shows the error and nothing else happens.
+// The request and response shapes come from static analysis of the Android app (ITVX 17.5.0) and were then checked against the live search
+// service with a handful of anonymous GETs (the service answers with an open cross-origin header, so a web page can read it).
+// The first attempt failed with 404 because two parameters differed from the app's: `broadcaster` is always sent (a logged-out user gets "itv")
+// and `pretx` is "true". Those two values are the app's own defaults, not credentials.
 //
-// Not implemented: programme pages with episodes (the app uses other APIs for that), home rails, playback, accounts.
-// Read-only and anonymous. No keys, tokens or client ids are used or stored.
+// Not implemented: programme pages with episodes (other APIs), home rails, playback, accounts. Read-only and anonymous; no keys or tokens.
 import { fillTemplate, allowedOrigin, str, num, getJson, safeId, ratingMapper } from './kit.js';
 
 export const ITVX = Object.freeze({
@@ -14,6 +13,8 @@ export const ITVX = Object.freeze({
   searchPath: '/search',
   domains: ['itv.com', 'itvstatic.com'],
   size: 21,                                                     // the app asks for 21
+  broadcaster: 'itv',                                           // the app's default for a logged-out user (enum BroadcasterName: itv, stv, utv)
+  pretx: 'true',                                                // constant the app sends (verified in bytecode)
   // Feature names the app sends for non-HD mobile playback (VariantFeature enum, without the HD / single-track entries).
   featureSet: ['mpeg-dash', 'widevine', 'widevine-download', 'inband-ttml', 'inband-webvtt', 'outband-webvtt', 'inband-audio-description'],
 });
@@ -39,18 +40,21 @@ export function mapResult(r) {
   const contentType = str(r.contentType).toLowerCase(), entity = str(r.entityType).toLowerCase();
   if (contentType === 'live' || contentType === 'pretx') return null;
   let id, title, kind = 'show';
-  if (entity === 'programme') { id = str(d.programmeCcid); title = str(d.programmeTitle) || str(d.brandTitle); }
+  // Field names as the live service sends them (note the capital "CC" in the ids); the lower-case spellings are what the app's own models use.
+  if (entity === 'programme') { id = str(d.programmeCCId) || str(d.programmeCcid); title = str(d.programmeTitle) || str(d.brandTitle); }
   else if (entity === 'film') { id = str(d.filmCCId); title = str(d.filmTitle); kind = 'film'; }
-  else if (entity === 'special') { id = str(d.specialCcid); title = str(d.specialTitle); }
+  else if (entity === 'special') { id = str(d.specialCCId) || str(d.specialCcid); title = str(d.specialTitle); }
   else return null;
   if (!safeId(id) || !title) return null;
+  const genres = (Array.isArray(d.genre) ? d.genre : [d.genre]).filter((g) => typeof g === 'string' && g.trim()).map((g) => g.trim());
   const eps = num(d.totalAvailableEpisodes, 0);
   const tier = str(d.tier) || str(d.latestAvailableEpisode?.tier);
-  const bits = [eps > 0 ? `${eps} episode${eps === 1 ? '' : 's'} available` : '', tier.toUpperCase() === 'PAID' ? 'ITVX Premium' : '', str(d.channelName)].filter(Boolean);
+  const extras = [eps > 0 ? `${eps} episode${eps === 1 ? '' : 's'} available` : '', tier.toUpperCase() === 'PAID' ? 'ITVX Premium' : ''].filter(Boolean);
+  const le = d.latestAvailableEpisode ?? {};
   return {
-    id, title, kind, genre: str(d.channelName), channel: str(d.channelName), subgenres: [],
-    description: bits.join(' · '),
-    imageUrl: safeImageUrl(d.imageHref) || safeImageUrl(d.image) || safeImageUrl(d.latestAvailableEpisode?.imageHref),
+    id, title, kind, genre: genres[0] ?? '', channel: 'ITVX', subgenres: [...genres.slice(1), ...extras],
+    description: str(d.synopsis).trim(),
+    imageUrl: safeImageUrl(d.imageHref) || safeImageUrl(d.tileImageHref) || safeImageUrl(le.imageHref) || safeImageUrl(le.tileImageHref) || safeImageUrl(d.image),
     rating: itvxRatingFromCode(undefined), ratingKnown: false,
   };
 }
@@ -65,7 +69,7 @@ export class ItvxCatalogue {
     const q = String(query ?? '').trim();
     if (q.length < 2) return [];
     const s = this.source;
-    const params = new URLSearchParams({ featureSet: s.featureSet.join(','), platform: 'mobile', query: q, size: String(s.size), onlyFree: 'false', channelType: 'SIMULCAST', pretx: 'false' });
+    const params = new URLSearchParams({ featureSet: s.featureSet.join(','), platform: 'mobile', query: q, size: String(s.size), onlyFree: 'false', channelType: 'SIMULCAST', broadcaster: s.broadcaster, pretx: s.pretx });
     const base = allowedOrigin(s.searchBase, s.domains);
     const data = await getJson(this.fetchFn, `${base}${s.searchPath}?${params}`);
     const cards = (Array.isArray(data?.results) ? data.results : []).map(mapResult).filter(Boolean);

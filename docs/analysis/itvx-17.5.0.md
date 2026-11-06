@@ -50,7 +50,7 @@ The programme page also uses compiled GraphQL operations (`brands`, `titles`, `c
 ## Playback (recorded, not touched)
 Widevine DRM with MPEG-DASH; playlist media types `application/vnd.itv.vod.playlist.v4+json`. Error strings reference device DRM support. Nothing here was investigated further.
 
-## Status in high5
+## Status in high5 (superseded by the resolution below)
 `web/js/channels/itvx.js`: **experimental, search only**, built from the above and tested only with invented fixtures and an in-browser network stub. Programme pages with episodes, home rails, playback and accounts are not implemented.
 Next step is for the owner to try it from their own browser and report any error shown under the search box.
 
@@ -77,3 +77,20 @@ Checked statically and ruled out: a header or api key on the search client (plai
 `firebase-analytics`, not URLs); a different path (Retrofit `GET search`). Still unknown: the real value/format of `featureSet` and `broadcaster`, or whether another route or version prefix is used in practice.
 Guessing variants against a live third-party service is not something to do without the owner's say-so each time. The reliable next step would be to capture the app's actual request (not possible without a proxy on a device
 that trusts it) or to find another, documented route. Status: **ITVX channel paused.**
+
+## Resolution (2026-11-06): ITVX search works
+Two parallel static-analysis agents read the exact request values from bytecode:
+* `featureSet` = comma-joined representations, no spaces/brackets (confirmed; already what was sent).
+* `pretx` = **`true`** (JADX had mis-resolved the constant to an unrelated static field `com.amazon...`; I had sent `false`).
+* `broadcaster` is **always sent**; for a logged-out user it is the `BroadcasterName` default **`itv`** (stored in the SharedPreference `sharedPreferenceBroadcaster`; enum values itv/stv/utv; it normally comes from the login token). I had omitted it.
+* `size=21`, `onlyFree=false`, `channelType=SIMULCAST` as before.
+With `broadcaster=itv&pretx=true` the service answered **HTTP 200 JSON with `access-control-allow-origin: *`**, so a web page can call it. (The missing parameter made the gateway return `404 Not found`,
+which has no CORS headers, hence the earlier browser errors.)
+
+Verified response shape (field names; no catalogue text recorded):
+`{ tookLongest, tookTotal, maxScore, results:[ { broadcaster, contentType:'vod', entityType:'programme'|'film'|'special', id, score, streamingPlatform, data:{ ... } } ] }`
+* programme `data`: `programmeCCId` (capital CC), `programmeTitle`, `synopsis`, `genre[]`, `tier`, `totalAvailableEpisodes`, `latestAvailableEpisode{episodeCCId,imageHref,tileImageHref,legacyId}`, `legacyId{apiEncoded,officialFormat}`, `topCast[{familyName,givenName,ranking}]`, `variant{featureSet}`, `platform`, `productionId`, `popularityIndex/Rank`, `timeDependentTags[]`, optional `brandingMetadata`.
+* film `data`: `filmCCId`, `filmTitle`, `duration`, `imageHref`, `tileImageHref`, plus the common fields. special `data`: `specialCCId`, `specialTitle`, `imageHref`, `tileImageHref`, optional `specialProgramme`.
+* Artwork links are templates on `ovp.itv.com` (`.../itv_hub/<class>/16x9?...&w={width}&h={height}&q={quality}&blur={blur}&bg={bg}&treatment={treatment}&fallback={fallback}`); fill width/height/quality and drop the rest.
+
+Probe log (all anonymous GETs, approved by the owner): 5 identity variants (404), 1 corrected request (200), plus two browser runs of the smoke test (search + artwork). Status: **beta, search only**; programme pages/episodes, home, playback and accounts are not implemented.

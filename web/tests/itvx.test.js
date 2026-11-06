@@ -4,15 +4,18 @@ import { ItvxCatalogue, mapResult, safeImageUrl, ITVX } from '../js/channels/itv
 import { SearchVM, ParentalControl, MemoryStore } from '../js/core.js';
 import { findChannel } from '../js/channels/index.js';
 
-// Invented content. Field names are the ones in the app's search models (SearchResponse / ResultsItem / SearchResultItemData).
-const prog = (id, title, extra = {}) => ({ contentType: 'programme', entityType: 'programme', data: { programmeCcid: id, programmeTitle: title, brandTitle: title + ' (brand)', totalAvailableEpisodes: 3, tier: 'FREE', channelName: 'Channel X', imageHref: 'https://ovp.itv.com/v2/images/programme/abc/itv_hub/c/16x9?w={width}&h={height}&q={quality}&blur={blur}', ...extra } });
-const RESPONSE = { results: [
-  prog('10_0001', 'Harbour Detectives'),
-  { contentType: 'film', entityType: 'film', data: { filmCCId: 'F100', filmTitle: 'Orbit Kids: The Movie', tier: 'PAID', image: 'https://itvstatic.com/img/x.jpg' } },
-  { contentType: 'special', entityType: 'special', data: { specialCcid: 'S100', specialTitle: 'Wild Britain Special', totalAvailableEpisodes: 1 } },
+// Invented content in the shape the live service really sends (verified): result = { broadcaster, contentType:'vod', data, entityType, id, score, streamingPlatform }.
+const IMG = 'https://ovp.itv.com/images/prXXXXXXX/XXXXXXX/itv_hub/rail/16x9?distributionPartner=d&treatment={treatment}&w={width}&h={height}&q={quality}&blur={blur}&bg={bg}&fallback={fallback}';
+const prog = (id, title, extra = {}) => ({ broadcaster: 'ITV', contentType: 'vod', entityType: 'programme', id: 'r' + id, score: 1, streamingPlatform: 'itv_hub',
+  data: { programmeCCId: id, programmeTitle: title, synopsis: ' A made-up synopsis. ', genre: ['Drama', 'Crime'], totalAvailableEpisodes: 3, tier: 'FREE',
+    latestAvailableEpisode: { episodeCCId: 'e1', imageHref: IMG, tileImageHref: IMG }, variant: { featureSet: [] }, topCast: [], timeDependentTags: [], ...extra } });
+const RESPONSE = { tookLongest: 1, tookTotal: 2, maxScore: 3.5, results: [
+  prog('wk99p9x', 'Harbour Detectives'),
+  { broadcaster: 'ITV', contentType: 'vod', entityType: 'film', id: 'f1', data: { filmCCId: 'lysc9m', filmTitle: 'Orbit Kids: The Movie', synopsis: 'A film.', genre: ['Family'], tier: 'PAID', imageHref: IMG, duration: 'PT1H30M' } },
+  { broadcaster: 'ITV', contentType: 'vod', entityType: 'special', id: 's1', data: { specialCCId: 'p99b9tx', specialTitle: 'Wild Britain Special', synopsis: 'A special.', genre: ['Documentary'], tileImageHref: IMG } },
   { contentType: 'live', entityType: 'channel', data: { channelId: 'itv1', channelName: 'ITV1' } },
-  { contentType: 'pretx', entityType: 'programme', data: { programmeCcid: 'P1', programmeTitle: 'Not yet' } },
-  { contentType: 'programme', entityType: 'mystery', data: { programmeCcid: 'M1', programmeTitle: 'Unknown type' } },
+  { contentType: 'pretx', entityType: 'programme', data: { programmeCCId: 'P1', programmeTitle: 'Not yet' } },
+  prog('M1', 'Unknown type', {}) && { ...prog('M1', 'Unknown type'), entityType: 'mystery' },
   prog('../evil', 'Bad id'), prog('10_0002', '', { brandTitle: '' }), null, { data: null },
 ] };
 const fakeFetch = (body, log = [], status = 200) => async (url, opts) => { log.push({ url, opts }); return { ok: status < 400, status, json: async () => body }; };
@@ -24,6 +27,8 @@ test('search builds the request the app uses and returns only displayable result
   assert.equal(u.origin, 'https://textsearch.prd.oasvc.itv.com'); assert.equal(u.pathname, '/search');
   assert.equal(u.searchParams.get('query'), 'harbour & co'); assert.equal(u.searchParams.get('platform'), 'mobile');
   assert.equal(u.searchParams.get('size'), '21'); assert.equal(u.searchParams.get('onlyFree'), 'false');
+  assert.equal(u.searchParams.get('broadcaster'), 'itv'); assert.equal(u.searchParams.get('pretx'), 'true');       // the two values that made the first attempt 404
+  assert.equal(u.searchParams.get('channelType'), 'SIMULCAST');
   assert.equal(u.searchParams.get('featureSet'), ITVX.featureSet.join(','));
   assert.ok(!u.searchParams.get('featureSet').includes('hd'));
   assert.deepEqual(r.map((x) => x.title), ['Harbour Detectives', 'Orbit Kids: The Movie', 'Wild Britain Special']);
@@ -52,12 +57,18 @@ test('images: only https on ITV domains, size placeholders filled, empty params 
   for (const bad of ['http://ovp.itv.com/a.jpg', 'https://evil.example.com/a.jpg', 'https://itv.com.evil.net/a.jpg', 'javascript:alert(1)', '', null, undefined, 42]) assert.equal(safeImageUrl(bad), null);
 });
 
-test('mapping details: tier, episode count, fallbacks, and hostile or broken items', () => {
+test('mapping details: genres, synopsis, tier, episode count, image fallbacks, and hostile or broken items', () => {
   const c = mapResult(prog('1_1', 'Show', { tier: 'PAID', totalAvailableEpisodes: 1 }));
-  assert.match(c.description, /1 episode available/); assert.match(c.description, /ITVX Premium/); assert.equal(c.genre, 'Channel X');
-  assert.equal(mapResult({ contentType: 'programme', entityType: 'programme', data: { programmeCcid: '9_9', brandTitle: 'Brand only' } }).title, 'Brand only');
-  assert.equal(mapResult(prog('1_1', 'X', { imageHref: 'https://evil.example.com/x.jpg', image: 'https://itvstatic.com/ok.jpg' })).imageUrl, 'https://itvstatic.com/ok.jpg');
-  assert.equal(mapResult(prog('1_1', 'X', { imageHref: undefined, image: undefined })).imageUrl, null);
+  assert.equal(c.genre, 'Drama'); assert.deepEqual(c.subgenres, ['Crime', '1 episode available', 'ITVX Premium']);
+  assert.equal(c.description, 'A made-up synopsis.');                                       // trimmed
+  assert.match(c.imageUrl, /^https:\/\/ovp\.itv\.com\/images\/.*[?&]w=640&h=360&q=80/); assert.ok(!c.imageUrl.includes('{'));   // placeholders filled, empty ones dropped
+  assert.equal(mapResult({ contentType: 'vod', entityType: 'programme', data: { programmeCCId: '9_9', brandTitle: 'Brand only' } }).title, 'Brand only');
+  assert.equal(mapResult({ contentType: 'vod', entityType: 'programme', data: { programmeCcid: '8_8', programmeTitle: 'Old spelling' } }).id, '8_8');   // the app's own spelling still accepted
+  assert.equal(mapResult(prog('1_1', 'X', { genre: 'Comedy' })).genre, 'Comedy');          // a plain string genre is tolerated
+  assert.equal(mapResult(prog('1_1', 'X', { genre: undefined })).genre, '');
+  const le = (u) => ({ latestAvailableEpisode: { imageHref: u }, imageHref: undefined, tileImageHref: undefined });
+  assert.equal(mapResult(prog('1_1', 'X', le('https://evil.example.com/x.jpg'))).imageUrl, null);
+  assert.equal(mapResult(prog('1_1', 'X', { latestAvailableEpisode: undefined })).imageUrl, null);
   for (const bad of [null, undefined, {}, { data: 5 }, { entityType: 'programme', data: {} }]) assert.equal(mapResult(bad), null);
 });
 
@@ -76,14 +87,14 @@ test('a source pointing at a non-ITV host is refused before any request is made'
 
 test('show page is built from the search result; unknown ids give null', async () => {
   const cat = new ItvxCatalogue({ fetchFn: fakeFetch(RESPONSE) });
-  assert.equal(await cat.getShow('10_0001'), null);            // nothing searched yet
+  assert.equal(await cat.getShow('wk99p9x'), null);            // nothing searched yet
   await cat.search('harbour');
-  const s = await cat.getShow('10_0001');
-  assert.equal(s.title, 'Harbour Detectives'); assert.deepEqual(s.episodes, []); assert.match(s.synopsis, /3 episodes available/);
+  const s = await cat.getShow('wk99p9x');
+  assert.equal(s.title, 'Harbour Detectives'); assert.deepEqual(s.episodes, []); assert.equal(s.synopsis, 'A made-up synopsis.'); assert.ok(s.bannerUrl);
   assert.equal(await cat.getShow('nope'), null); assert.equal(await cat.getShow(undefined), null);
 });
 
-test('registered as an experimental, search-only channel and works with the shared view-models', async () => {
+test('registered as a beta, search-only channel and works with the shared view-models', async () => {
   const ch = findChannel('itvx');
   assert.ok(ch.experimental); assert.equal(ch.capabilities.playback, false); assert.equal(ch.capabilities.guide, false);
   const parental = new ParentalControl(new MemoryStore());

@@ -98,7 +98,8 @@ Work in this order; stop as soon as the question is answered.
    Retrofit annotations in release builds are obfuscated to single letters. `find_endpoints.py` shows them as `?f`, `?o`... and does **not** guess. Within one build the mapping is consistent, so corroborate: an id route with GET, PUT and DELETE on the same path pins three letters at once. In one build the alphabet was `b=DELETE f=GET n=PATCH o=POST p=PUT`; treat that as a hint, not a rule. REA's own decompiler cannot show abstract interface methods, which is why `Decompile.java` (JADX library, whole classes) is used here.
 4. **Data shapes.** Decompile the model classes (`@SerializedName`/`@Json` names are the JSON keys; Kotlin data-class `toString` strings also list field names). Note types and units (seconds vs milliseconds, epoch vs ISO).
 5. **Templates.** If a config document holds URL templates like `/shows/{showId}.json?platform={platformId}`, record the placeholder syntax and how unused placeholders are handled (the decompiled `TemplateBuilder`-style class tells you).
-6. **Playback, auth, DRM.** Record the scheme names, where licence URLs come from, and what the error strings say about region/VPN/device checks. Do not go further (rule 3).
+6. **Request details you cannot see in the interface.** For every parameter in the query map, find the literal or its source: constants (bytecode), `getString(key, default)` defaults, and what the caller passes. Independent static questions (separator format, parameter sources, other routes) parallelise well across helper agents; keep any live requests serial, listed up front and few.
+7. **Playback, auth, DRM.** Record the scheme names, where licence URLs come from, and what the error strings say about region/VPN/device checks. Do not go further (rule 3).
 
 ## Step 6 - Probe, only if allowed
 
@@ -129,5 +130,6 @@ With the user's go-ahead for *this* service: fetch the public config document on
 | Hosts list shows only SDKs | The back end address is in `resources.txt` or in a remote config document, not in code strings. |
 | Interface/class names look like `Ff.a` | Obfuscated. Use `Decompile.java --contains` with a known string or `'Api.kt */'` (Step 5.3). |
 | Config says `<withheld>` for a value you need | That is a credential. Stop and tell the user; it is their decision, never yours. |
+| A reconstructed request gets `404` and every client identity gets the same answer | A parameter is missing or wrong. Read each literal from **bytecode** (androguard const-string), not from JADX: JADX can show a constant as an unrelated static field (here `pretx` looked like `com.amazon...ah` but was `"true"`), and values the app always sends (here `broadcaster`, defaulting to `itv` from a SharedPreference getter) are easy to miss. Trace where each string argument comes from. |
 | A copied request gets `404`/`403` from the service | The address or parameters differ from the app's. The User-Agent rarely matters (test once if the user asks). Re-read how the app builds the request (client provider, interceptors, parameter formatting). A 404 carries no CORS headers, so a browser shows it as a network/CORS failure: do not conclude "blocked" without a server-side check. |
 | `find_endpoints.py` prints nothing | The API classes are obfuscated or in another package; list classes with `--list` and look for `retrofit2.http` imports. |

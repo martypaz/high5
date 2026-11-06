@@ -6,7 +6,7 @@ search, My List, TV guide, parental PIN/rating limit, device-code sign-in screen
 
 * No build step: it is static files (`index.html`, `css/`, `js/`).
 * `js/core.js` = logic (unit tested: `npm test`), `js/ui.js` = screens, D-pad/gamepad navigation and the player.
-* **Channels** (top bar, or `#/channels`): every channel uses the same screens and styling; a channel only supplies data. Built in: **Channel 5** (live, read-only), **ITVX** (experimental, untested, search only), **Demo** (invented, offline). Adding one is documented in `.claude/skills/read-apk-from-drive/references/channel-adapter.md`.
+* **Channels** (top bar, or `#/channels`): every channel uses the same screens and styling; a channel only supplies data. Built in: **Channel 5** (live, read-only), **ITVX** (beta, search only), **Demo** (invented, offline). Adding one is documented in `.claude/skills/read-apk-from-drive/references/channel-adapter.md`.
 * **Channel 5 and Demo in more detail** (this was the original data-source switch): **Live catalogue (read-only)** - real search and show pages, no account, GET requests only;
   and **Demo data** - invented shows, fully offline. Live is the default; the preview artifact uses demo because its sandbox blocks other hosts.
 * Live mode shows poster images (from the catalogue's image host) but does **not** include: browse rails, TV guide, sign-in, server-side My List/resume, or playback.
