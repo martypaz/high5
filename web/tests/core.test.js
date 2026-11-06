@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AgeRating, MemoryStore, ParentalControl, MockCatalogue, MockLive, MockMyList, MockResume, MockPlayback, MockAuth,
+import { AgeRating, MemoryStore, LocalStore, ParentalControl, MockCatalogue, MockLive, MockMyList, MockResume, MockPlayback, MockAuth,
   HomeVM, ShowVM, SearchVM, MyListVM, GuideVM, SignInVM, PlayerVM, isFinished, progressOf } from '../js/core.js';
 
 const setup = () => {
@@ -148,4 +148,11 @@ test('player resumes and throttles saves; live never saves', async () => {
   const d2 = setup(); const live = await new PlayerVM({ ...d2, clock }).loadLive('ch-a');
   assert.equal(await live.report(60, 0, true), false);
   assert.deepEqual(await d2.resume.getAll(), []);
+});
+
+test('LocalStore still works when browser storage is unavailable', () => {
+  const st = new LocalStore();               // in Node there is no localStorage, like a blocked browser
+  assert.equal(st.get('a'), null);
+  st.set('a', 1); assert.equal(st.get('a'), '1');
+  st.set('a', null); assert.equal(st.get('a'), null);
 });

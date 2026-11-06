@@ -1,9 +1,10 @@
-:root { --bg:#0b1320; --panel:#1e2a3a; --text:#f2f5fa; --dim:#9fb0c7; --accent:#4682e6; --safe:4vw; }
+:root { color-scheme: dark; --bg:#0b1320; --panel:#1e2a3a; --text:#f2f5fa; --dim:#9fb0c7; --accent:#4682e6; --safe:4vw; }
 * { box-sizing: border-box; }
 html { font-size: 20px; }                      /* 10-foot UI: big base size */
-body { margin:0; background:var(--bg); color:var(--text); font-family: "Segoe UI", system-ui, sans-serif; overflow-x:hidden; }
+body { -webkit-tap-highlight-color: transparent; margin:0; background:var(--bg); color:var(--text); font-family: "Segoe UI", system-ui, sans-serif; overflow-x:hidden; }
 a { color: inherit; text-decoration: none; }
-#topbar { display:flex; align-items:center; gap:2rem; padding: 1rem var(--safe); position:sticky; top:0; background:rgba(11,19,32,.96); z-index:5; }
+#topbar { display:flex; align-items:center; gap:2rem; padding: 1rem var(--safe); position:sticky; top:env(safe-area-inset-top, 0px); background:rgba(11,19,32,.96); z-index:5; }
+body::before { content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top, 0px); background:var(--bg); z-index:10; }
 .brand { font-weight:800; font-size:1.6rem; letter-spacing:.04em; color:var(--accent); }
 nav { display:flex; gap:.5rem; }
 nav a, .btn { padding:.55rem 1.1rem; border-radius:.5rem; background:transparent; border:2px solid transparent; font-size:1.05rem; color:var(--text); cursor:pointer; font-family:inherit; }
@@ -16,7 +17,7 @@ nav a.active { border-bottom:3px solid var(--accent); }
 main { padding: 1rem var(--safe) 3rem; min-height: 80vh; outline:none; }
 h1 { font-size:2.2rem; margin:.4rem 0 .8rem; } h2 { font-size:1.5rem; margin:1.4rem 0 .6rem; }
 .dim { color:var(--dim); } .error { color:#ff7a6b; }
-.rail { display:flex; gap:1rem; overflow-x:auto; padding:.6rem .4rem 1rem; scrollbar-width:none; }
+.rail { display:flex; gap:1rem; overflow-x:auto; padding:.9rem .8rem 1.1rem; margin:0 -.8rem; scrollbar-width:none; }
 .rail::-webkit-scrollbar { display:none; }
 .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:1rem; padding:.4rem; }
 .tile { position:relative; flex:0 0 250px; height:150px; background:var(--panel); border-radius:.6rem; padding:.8rem; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden; }
@@ -30,11 +31,20 @@ h1 { font-size:2.2rem; margin:.4rem 0 .8rem; } h2 { font-size:1.5rem; margin:1.4
 .guide { width:100%; border-collapse:collapse; } .guide td { padding:.7rem .6rem; border-bottom:1px solid #fff2; vertical-align:top; }
 .code { font-size:4.5rem; font-weight:800; letter-spacing:.12em; margin:1rem 0; }
 .center { text-align:center; max-width:900px; margin: 6vh auto; }
-input, select { font-size:1.2rem; padding:.6rem .8rem; border-radius:.5rem; border:2px solid #fff3; background:var(--panel); color:var(--text); min-width:18rem; font-family:inherit; }
+input, select { font-size:1.2rem; padding:.6rem .8rem; border-radius:.5rem; border:2px solid #fff3; background:var(--panel); color:var(--text); min-width:min(18rem, 100%); max-width:100%; font-family:inherit; }
 input:focus, select:focus { outline:4px solid #fff; }
-.search-box { display:flex; gap:.8rem; margin:.6rem 0 1rem; }
+.search-box { display:flex; flex-wrap:wrap; gap:.8rem; margin:.6rem 0 1rem; }
+.search-box input { flex:1 1 14rem; }
 video { width:100%; max-height:86vh; background:#000; display:block; }
 .player-bar { display:flex; gap:1rem; align-items:center; padding:.6rem 0; }
 #toast { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%); background:#000c; padding:.7rem 1.2rem; border-radius:.6rem; opacity:0; pointer-events:none; transition:opacity .2s; }
 #toast.show { opacity:1; }
-@media (max-width: 700px) { html { font-size:16px; } #topbar { flex-wrap:wrap; gap:.6rem; } nav { flex-wrap:wrap; } }
+/* Touch screens: no leftover focus ring after a tap (TV / keyboard / gamepad users keep the big ring). */
+@media (pointer: coarse) { [data-nav]:focus:not(:focus-visible) { outline:none; transform:none; } }
+@media (max-width: 700px) {
+  .guide td .btn { display:inline-block; margin-bottom:.5rem; }
+  html { font-size:16px; } #topbar { flex-wrap:wrap; gap:.6rem; } nav { flex-wrap:wrap; }
+  .guide, .guide tbody, .guide tr, .guide td { display:block; width:100%; }
+  .guide tr { padding:.6rem 0; border-bottom:1px solid #fff2; } .guide td { border-bottom:0; padding:.3rem 0; }
+  .code { font-size:2.6rem; }
+}

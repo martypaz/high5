@@ -10,9 +10,18 @@ export class MemoryStore {
   get(k) { return this.m.has(k) ? this.m.get(k) : null; }
   set(k, v) { if (v == null) this.m.delete(k); else this.m.set(k, String(v)); }
 }
+/** localStorage with an in-memory fallback, so the app still works (for the session) when storage is blocked
+ *  (private windows, sandboxed previews, cleared site data). */
 export class LocalStore {
-  get(k) { try { return localStorage.getItem('high5.' + k); } catch { return null; } }
-  set(k, v) { try { if (v == null) localStorage.removeItem('high5.' + k); else localStorage.setItem('high5.' + k, String(v)); } catch { /* private mode */ } }
+  constructor() { this.mem = new Map(); }
+  get(k) {
+    try { const v = localStorage.getItem('high5.' + k); if (v !== null) return v; } catch { /* blocked */ }
+    return this.mem.has(k) ? this.mem.get(k) : null;
+  }
+  set(k, v) {
+    if (v == null) this.mem.delete(k); else this.mem.set(k, String(v));
+    try { if (v == null) localStorage.removeItem('high5.' + k); else localStorage.setItem('high5.' + k, String(v)); } catch { /* blocked */ }
+  }
 }
 
 export const systemClock = { now: () => Date.now() };

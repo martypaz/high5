@@ -49,7 +49,22 @@ function move(dir) {
   if (best) { best.focus({ preventScroll: true }); best.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
 }
 const typing = () => /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName ?? '');
-const goBack = () => { if (history.length > 1) history.back(); else location.hash = '#/home'; };
+// Routing: URL hash by default. In a sandbox that can't use #/paths (e.g. an embedded preview) set
+// globalThis.__HIGH5_MEMORY_ROUTER__ = true (or add ?router=memory) to keep the route in memory instead.
+const memoryRouter = !!globalThis.__HIGH5_MEMORY_ROUTER__ || new URLSearchParams(location.search).get('router') === 'memory';
+const stack = [];                                   // memory mode only
+const currentHash = () => (memoryRouter ? stack[stack.length - 1] ?? '#/home' : location.hash || '#/home');
+const go = (hash) => { if (memoryRouter) { stack.push(hash); route(); } else location.hash = hash; };
+const replaceRoute = (hash) => { if (memoryRouter) { stack[Math.max(0, stack.length - 1)] = hash; route(); } else location.replace(hash); };
+const goBack = () => {
+  if (memoryRouter) { if (stack.length > 1) { stack.pop(); route(); } return; }
+  if (history.length > 1) history.back(); else location.hash = '#/home';
+};
+document.addEventListener('click', (e) => {
+  if (!memoryRouter) return;
+  const a = e.target.closest?.('a[href^="#/"]');
+  if (a) { e.preventDefault(); go(a.getAttribute('href')); }
+});
 
 addEventListener('keydown', (e) => {
   const map = { ArrowRight: 'right', ArrowLeft: 'left', ArrowDown: 'down', ArrowUp: 'up' };
@@ -87,21 +102,24 @@ const routes = {
   home: renderHome, show: renderShow, play: renderPlayer, live: renderLive, search: renderSearch, guide: renderGuide,
   mylist: renderMyList, settings: renderSettings, signin: renderSignIn,
 };
-function focusFirst() { (view.querySelector('[data-nav]') ?? document.querySelector('#topbar [data-nav]'))?.focus({ preventScroll: true }); }
+function focusFirst() {
+  if (matchMedia('(pointer: coarse)').matches) return;     // touch screens: don't pop a focus ring up after each tap
+  (view.querySelector('[data-nav]') ?? document.querySelector('#topbar [data-nav]'))?.focus({ preventScroll: true });
+}
 
 async function route() {
   if (cleanup) { try { await cleanup(); } catch { /* ignore */ } cleanup = null; }
-  const [, name = 'home', ...rest] = (location.hash || '#/home').split('/');
+  const [, name = 'home', ...rest] = currentHash().split('/');
   const arg = decodeURIComponent(rest.join('/'));
   const target = signedIn() || name === 'signin' ? name : 'signin';
-  if (target !== name) { location.replace('#/signin'); return; }
+  if (target !== name) { replaceRoute('#/signin'); return; }
   document.querySelectorAll('#topbar nav a').forEach((a) => a.classList.toggle('active', a.dataset.route === target));
   document.getElementById('topbar').style.display = target === 'signin' || target === 'play' || target === 'live' ? 'none' : '';
   view.replaceChildren(h('p', { class: 'dim' }, 'Loading…'));
   try { await (routes[target] ?? renderHome)(arg); } catch (e) { view.replaceChildren(h('p', { class: 'error' }, e.message), button('Back', goBack)); }
   focusFirst();
 }
-addEventListener('hashchange', route);
+if (!memoryRouter) addEventListener('hashchange', route);
 
 // ---------- screens ----------
 async function renderHome() {
@@ -167,19 +185,19 @@ async function renderSettings() {
   view.replaceChildren(h('h1', {}, 'Settings'), h('h2', {}, 'Parental controls'),
     h('div', { class: 'row' }, pin, button('Set PIN', async () => { try { await p.setPin(pin.value); pin.value = ''; status.textContent = 'PIN saved.'; } catch (e) { status.textContent = e.message; } })),
     h('div', { class: 'row' }, rating), status,
-    h('h2', {}, 'Account'), button('Sign out', async () => { await services.auth.signOut(); services.store.set('mock.signedIn', null); location.hash = '#/signin'; }));
+    h('h2', {}, 'Account'), button('Sign out', async () => { await services.auth.signOut(); services.store.set('mock.signedIn', null); go('#/signin'); }));
 }
 
 async function renderSignIn() {
   const code = h('div', { class: 'code' }, '…'), status = h('p', { class: 'dim' }, ''), retry = button('Get a new code', () => start(), 'btn primary');
   retry.style.display = 'none';
-  view.replaceChildren(h('div', { class: 'center' }, h('h1', {}, 'Sign in to My5'), h('p', {}, 'On your phone or computer, open the My5 activation page and enter this code:'), code, status, retry));
+  view.replaceChildren(h('div', { class: 'center' }, h('h1', {}, 'Sign in'), h('p', {}, 'On your phone or computer, open the activation page and enter this code:'), code, status, retry));
   let ac;
   const start = async () => {
     ac?.abort(); ac = new AbortController(); retry.style.display = 'none'; status.textContent = 'Waiting for you to enter the code…';
     const vm = new SignInVM({ auth: services.auth });
     const result = await vm.run({ signal: ac.signal, onCode: (c) => { code.textContent = c; } });
-    if (result === 'signedIn') { services.store.set('mock.signedIn', '1'); location.hash = '#/home'; }
+    if (result === 'signedIn') { services.store.set('mock.signedIn', '1'); replaceRoute('#/home'); }
     else if (result === 'expired') { status.textContent = 'That code expired.'; retry.style.display = ''; retry.focus(); }
     else if (result === 'error') { status.textContent = vm.error ?? 'Something went wrong.'; status.className = 'error'; retry.style.display = ''; }
   };
