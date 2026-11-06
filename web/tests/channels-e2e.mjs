@@ -129,6 +129,11 @@ try {
   assert.match(await p3.locator('main').innerText(), /3 shown of 3/); assert.ok(!/\bnull\b|undefined/.test(await p3.locator('main').innerText()));
   await p3.screenshot({ path: `${out}/c8-browse-shows.png` });
   await p3.getByRole('link', { name: 'Back to categories' }).click(); await p3.waitForFunction(() => document.querySelector('h1')?.textContent === 'Browse');
+  // Back lands on the tile you left from (D-pad friendly): open "Documentaries" from the keyboard, go back, it is focused again.
+  await p3.waitForSelector('main .tile'); await p3.locator('main .tile', { hasText: 'Documentaries' }).focus(); await p3.keyboard.press('Enter');
+  await p3.waitForFunction(() => location.hash.includes('c-PLC_PGenreDocs')); await p3.waitForSelector('main .error');
+  await p3.keyboard.press('Escape'); await p3.waitForFunction(() => location.hash === '#/browse' && document.querySelector('main .tile'));
+  assert.equal(await p3.evaluate(() => document.activeElement?.textContent), 'Documentaries');
   assert.ok(seen3.every((r) => r.startsWith('GET ')), seen3.join(', '));
   assert.equal(await page.locator('#topbar nav a[data-route=browse]').evaluate((a) => getComputedStyle(a).display), 'none');      // channels without browse hide the link
   // Scenario 4: a failed load offers "Try again" (first config request fails, the retry works).

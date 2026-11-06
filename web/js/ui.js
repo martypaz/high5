@@ -111,12 +111,24 @@ const routes = {
   home: renderHome, show: renderShow, play: renderPlayer, live: renderLive, search: renderSearch, guide: renderGuide,
   browse: renderBrowse, mylist: renderMyList, settings: renderSettings, signin: renderSignIn, channels: renderChannels,
 };
+// Going back should land on the tile you came from (important with a D-pad). We remember one focus target per page address.
+const focusMemory = new Map();
+let lastHash = null;
+const focusKey = (el) => (el?.getAttribute?.('href') || el?.textContent || '').slice(0, 120);
+function rememberFocus() {
+  const el = document.activeElement;
+  if (lastHash && el && view.contains(el) && el.matches('[data-nav]')) { focusMemory.set(lastHash, focusKey(el)); if (focusMemory.size > 60) focusMemory.delete(focusMemory.keys().next().value); }
+}
 function focusFirst() {
   if (matchMedia('(pointer: coarse)').matches) return;     // touch screens: don't pop a focus ring up after each tap
-  (view.querySelector('[data-nav]') ?? document.querySelector('#topbar [data-nav]'))?.focus({ preventScroll: true });
+  const want = focusMemory.get(currentHash());
+  const back = want ? [...view.querySelectorAll('[data-nav]')].find((el) => focusKey(el) === want) : null;
+  const target = back ?? view.querySelector('[data-nav]') ?? document.querySelector('#topbar [data-nav]');
+  target?.focus({ preventScroll: !back }); if (back) back.scrollIntoView({ block: 'center', inline: 'nearest' });
 }
 
 async function route() {
+  rememberFocus();
   if (cleanup) { try { await cleanup(); } catch { /* ignore */ } cleanup = null; }
   const [, name = 'home', ...rest] = currentHash().split('/');
   const arg = decodeURIComponent(rest.join('/'));
@@ -127,7 +139,7 @@ async function route() {
   document.getElementById('topbar').style.display = target === 'signin' || target === 'play' || target === 'live' ? 'none' : '';
   view.replaceChildren(h('p', { class: 'dim' }, 'Loading…'));
   try { await (routes[target] ?? renderHome)(arg); } catch (e) { view.replaceChildren(h('p', { class: 'error' }, e.message), h('div', { class: 'row' }, button('Try again', route), button('Back', goBack))); }
-  focusFirst();
+  focusFirst(); lastHash = currentHash();
 }
 if (!memoryRouter) addEventListener('hashchange', route);
 
