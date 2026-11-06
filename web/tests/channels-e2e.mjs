@@ -40,7 +40,7 @@ try {
   assert.equal(await page.locator('.tile .badge').count(), 0);                                                      // unknown ratings are not displayed
   await page.waitForFunction(() => [...document.querySelectorAll('.tile img.poster')].some((i) => i.complete && i.naturalWidth > 0));
   await page.screenshot({ path: `${out}/c2-itvx-search.png` });
-  await page.locator('.grid .tile').first().click(); await page.waitForSelector('h1');
+  await page.locator('.grid .tile').first().click(); await page.waitForFunction(() => document.querySelector('h1')?.textContent === 'Harbour Detectives');
   assert.match(await page.locator('h1').innerText(), /Harbour Detectives/); assert.match(await page.locator('main').innerText(), /Latest episode|4 episodes available/); assert.match(await page.locator('main').innerText(), /A made-up synopsis/);
   assert.match(await page.locator('main').innerText(), /Playback is not available/);
   assert.ok(!/\bnull\b|undefined/.test(await page.locator('main').innerText()), 'no stray null/undefined text on a show page');

@@ -34,7 +34,7 @@ try {
   await key('ArrowDown');
   const first = await focused(); assert.ok(first && first.length > 0, 'something is focused');
   await key('ArrowRight'); await key('ArrowLeft');
-  await key('Enter'); await page.waitForSelector('h1');
+  await key('Enter'); await page.waitForFunction(() => location.hash.startsWith('#/show/') && document.querySelector('h1'));
   assert.match(page.url(), /#\/show\//); await shot('show');
   assert.match(await text(), /Series 1|Episode 1/);
 
