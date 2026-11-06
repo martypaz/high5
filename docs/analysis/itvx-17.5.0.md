@@ -53,3 +53,9 @@ Widevine DRM with MPEG-DASH; playlist media types `application/vnd.itv.vod.playl
 ## Status in high5
 `web/js/channels/itvx.js`: **experimental, search only**, built from the above and tested only with invented fixtures and an in-browser network stub. Programme pages with episodes, home rails, playback and accounts are not implemented.
 Next step is for the owner to try it from their own browser and report any error shown under the search box.
+
+## First real attempt (owner's phone browser, 2026-11-06)
+The ITVX channel's first search from a web page failed with the app's generic "could not reach the catalogue" message. A browser cannot say why: a down
+network and a server that does not allow web pages to read its replies (CORS) look identical to the page. The app now repeats the failed GET once in
+`no-cors` mode to tell them apart and shows a specific message. If it reports a blocked reply, ITVX cannot work as a pure web page (the native app is not
+subject to that rule); the options are a native client, a proxy (needs the owner's explicit go-ahead and has terms implications), or leaving the channel out.

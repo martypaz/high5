@@ -59,3 +59,15 @@ test('the demo channel still works end to end through the contract', async () =>
   const hits = await cat.search('bake'); assert.ok(hits.length);
   const show = await cat.getShow(hits[0].id); assert.ok(show.episodes.length);
 });
+
+test('kit: a failed request is explained - blocked by the browser (CORS) vs genuinely unreachable', async () => {
+  const calls = [];
+  // reachable but cross-origin blocked: the normal request throws, the no-cors repeat succeeds
+  const corsBlocked = async (u, o) => { calls.push(o); if (o.mode === 'no-cors') return { type: 'opaque' }; throw new TypeError('Failed to fetch'); };
+  await assert.rejects(() => getJson(corsBlocked, 'https://x.test/a'), /blocked the reply.*cross-origin/s);
+  assert.equal(calls.length, 2); assert.equal(calls[1].mode, 'no-cors'); assert.equal(calls[1].credentials, 'omit');
+  // genuinely unreachable: both throw
+  await assert.rejects(() => getJson(async () => { throw new TypeError('x'); }, 'https://x.test/a'), /Could not reach the catalogue/);
+  // HTTP errors are NOT re-requested
+  let n = 0; await assert.rejects(() => getJson(async () => { n++; return { ok: false, status: 403 }; }, 'https://x.test/a'), /\(403\)/); assert.equal(n, 1);
+});

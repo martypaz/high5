@@ -27,9 +27,20 @@ export const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 export async function getJson(fetchFn, url, accept = 'application/json') {
   let res;
   try { res = await fetchFn(url, { headers: { Accept: accept }, credentials: 'omit', referrerPolicy: 'no-referrer' }); }
-  catch { throw new Error('Could not reach the catalogue. Check your connection (it may only be reachable in the UK).'); }
+  catch { throw new Error(await explainNetworkFailure(fetchFn, url)); }
   if (!res.ok) throw new Error(`The catalogue returned an error (${res.status}).`);
   try { return await res.json(); } catch { throw new Error('The catalogue sent a response this app could not read.'); }
+}
+
+/**
+ * A failed fetch() looks the same whether the network is down or the browser refused to hand over the answer because the server does not
+ * allow other websites to read it (CORS). To tell them apart we repeat the same GET in "no-cors" mode, which succeeds (with an unreadable
+ * reply) whenever the server can be reached. Only runs after a failure, once, and only repeats the request that just failed.
+ */
+export async function explainNetworkFailure(fetchFn, url) {
+  try { await fetchFn(url, { mode: 'no-cors', credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'no-store' }); }
+  catch { return 'Could not reach the catalogue. Check your connection (it may only be reachable in the UK).'; }
+  return 'The service answered, but your browser blocked the reply: it does not allow web pages to read its data (a cross-origin rule). This channel cannot work inside a web page.';
 }
 
 /** Maps a service's own rating code to 0..4 (U, PG, 12, 15, 18). Unknown codes fail CLOSED (4) so the parental lock never leaks. */

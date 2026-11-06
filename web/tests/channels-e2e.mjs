@@ -46,6 +46,18 @@ try {
   await page.screenshot({ path: `${out}/c3-itvx-show.png` });
   assert.ok(external.some((r) => r.startsWith('GET textsearch.prd.oasvc.itv.com/search')), 'the search request was made (and answered by the stub)');
   assert.ok(external.every((r) => r.startsWith('GET ')), 'only GET requests: ' + external.join(', '));
+  // Scenario 2: what a CORS-blocked request looks like to the page: the normal fetch() fails, but a plain "no-cors" repeat of the same
+  // GET goes through (the server is reachable; the browser just refuses to hand over the reply). We tell the two requests apart by their
+  // Accept header: the app's JSON request sends `application/json`, the reachability check sends none.
+  const p2 = await (await browser.newContext({ viewport: { width: 390, height: 800 } })).newPage();
+  await p2.addInitScript(() => { try { localStorage.setItem('high5.channel', 'itvx'); } catch {} });
+  await p2.route((u) => !['127.0.0.1', 'localhost'].includes(u.hostname), (route) =>
+    (route.request().headers()['accept'] ?? '').includes('application/json') ? route.abort('failed') : route.fulfill({ status: 200, contentType: 'text/plain', body: 'opaque' }));
+  await p2.goto(`http://127.0.0.1:${PORT}/#/search`); await p2.waitForSelector('input[type=search]');
+  await p2.locator('input[type=search]').fill('harbour');
+  await p2.waitForFunction(() => /blocked the reply/.test(document.querySelector('main')?.innerText ?? ''), null, { timeout: 15000 });
+  await p2.screenshot({ path: `${out}/c4-cors-explained.png` });
+  console.log('cors scenario: the app explained that the browser blocked the reply');
   assert.deepEqual(errors, [], errors.join('|'));
   console.log('CHANNELS E2E PASSED\nrequests (all answered by the in-browser stub):\n  ' + external.join('\n  '));
 } catch (e) { await page.screenshot({ path: `${out}/c-FAIL.png` }).catch(() => {}); console.error('CHANNELS E2E FAILED:', e.message, '\nrequests:', external, '\nerrors:', errors); process.exitCode = 1; }

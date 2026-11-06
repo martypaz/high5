@@ -56,7 +56,7 @@ test('settings are fetched once and cached; a failed fetch is retried next time'
   const log = []; const cat = make(routes, log);
   await cat.search('ab'); await cat.search('cd');
   assert.equal(log.filter((l) => l.url.includes('config.json')).length, 1);
-  let calls = 0; const flaky = new LiveCatalogue({ fetchFn: async (u) => { calls++; if (calls === 1) throw new Error('net'); return { ok: true, status: 200, json: async () => (u.includes('config.json') ? CONFIG : SEARCH) }; } });
+  let calls = 0; const flaky = new LiveCatalogue({ fetchFn: async (u, o) => { if (o?.mode === 'no-cors') throw new Error('still down'); calls++; if (calls === 1) throw new Error('net'); return { ok: true, status: 200, json: async () => (u.includes('config.json') ? CONFIG : SEARCH) }; } });
   await assert.rejects(() => flaky.search('ab'), /Could not reach/);
   assert.equal((await flaky.search('ab')).length, 2);
 });
