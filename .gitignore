@@ -6,3 +6,9 @@ apk/
 *.aab
 analysis-out/
 *.zip
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/

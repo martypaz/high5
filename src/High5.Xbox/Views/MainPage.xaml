@@ -1,0 +1,16 @@
+<Page x:Class="High5.Xbox.Views.MainPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Top navigation bar (the usual 10-foot pattern); content frame below. -->
+    <NavigationView x:Name="Nav" PaneDisplayMode="Top" IsBackButtonVisible="Auto" IsSettingsVisible="False"
+                    ItemInvoked="OnInvoked" BackRequested="OnBack" XYFocusKeyboardNavigation="Enabled">
+        <NavigationView.MenuItems>
+            <NavigationViewItem Content="Home"    Tag="home"/>
+            <NavigationViewItem Content="Search"  Tag="search"/>
+            <NavigationViewItem Content="TV guide" Tag="guide"/>
+            <NavigationViewItem Content="My List" Tag="mylist"/>
+            <NavigationViewItem Content="Settings" Tag="settings"/>
+        </NavigationView.MenuItems>
+        <Frame x:Name="ContentFrame"/>
+    </NavigationView>
+</Page>

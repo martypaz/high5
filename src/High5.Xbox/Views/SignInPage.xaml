@@ -1,0 +1,11 @@
+<Page x:Class="High5.Xbox.Views.SignInPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+        <TextBlock Text="Sign in to My5" FontSize="48"/>
+        <TextBlock Text="On your phone or computer, go to the My5 activation page and enter this code:" FontSize="24" TextWrapping="Wrap" MaxWidth="900"/>
+        <TextBlock Text="{x:Bind Vm.Code, Mode=OneWay}" FontSize="72" FontWeight="Bold"/>
+        <TextBlock Text="{x:Bind Vm.Error, Mode=OneWay}" Foreground="OrangeRed" FontSize="20"/>
+        <Button x:Name="Retry" Content="Get a new code" Click="OnRetry" Visibility="Collapsed" FontSize="24"/>
+    </StackPanel>
+</Page>

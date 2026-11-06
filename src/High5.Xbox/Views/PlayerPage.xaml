@@ -1,0 +1,15 @@
+<Page x:Class="High5.Xbox.Views.PlayerPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="Black">
+        <!-- Built-in transport controls are gamepad-friendly on Xbox (A play/pause, B back, triggers seek). -->
+        <MediaPlayerElement x:Name="Player" AreTransportControlsEnabled="True" AutoPlay="True" Stretch="Uniform">
+            <MediaPlayerElement.TransportControls>
+                <MediaTransportControls IsCompact="False" IsNextTrackButtonVisible="False" IsPreviousTrackButtonVisible="False"
+                                        IsFastForwardButtonVisible="True" IsFastRewindButtonVisible="True" IsSkipForwardButtonVisible="True" IsSkipBackwardButtonVisible="True"/>
+            </MediaPlayerElement.TransportControls>
+        </MediaPlayerElement>
+        <ProgressRing x:Name="Spinner" IsActive="True" Width="80" Height="80"/>
+        <TextBlock x:Name="ErrorText" Foreground="OrangeRed" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="900"/>
+    </Grid>
+</Page>
