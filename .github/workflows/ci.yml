@@ -21,10 +21,28 @@ jobs:
         with: { node-version: '22' }
       - run: npm test
         working-directory: web
+      # Browser tests: a real Chromium drives the app; every outside request is answered by an in-browser stub with invented data.
+      - name: Install Chromium for the browser tests
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+        working-directory: web
+      - run: npm run test:browser
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: high5-web-screenshots
+          path: |
+            /tmp/high5-shots
+            /tmp/high5-channels
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: high5-web
-          path: web
+          path: |
+            web
+            !web/node_modules
 
   xbox-package:
     # windows-2022 ships VS 2022 with the UWP workload + Windows SDK 19041; windows-latest (newer VS) does not.

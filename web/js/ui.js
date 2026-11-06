@@ -125,7 +125,7 @@ async function route() {
   const pill = document.getElementById('channel-link'); if (pill) pill.textContent = `Channel: ${channel.name}`;
   document.getElementById('topbar').style.display = target === 'signin' || target === 'play' || target === 'live' ? 'none' : '';
   view.replaceChildren(h('p', { class: 'dim' }, 'Loading…'));
-  try { await (routes[target] ?? renderHome)(arg); } catch (e) { view.replaceChildren(h('p', { class: 'error' }, e.message), button('Back', goBack)); }
+  try { await (routes[target] ?? renderHome)(arg); } catch (e) { view.replaceChildren(h('p', { class: 'error' }, e.message), h('div', { class: 'row' }, button('Try again', route), button('Back', goBack))); }
   focusFirst();
 }
 if (!memoryRouter) addEventListener('hashchange', route);
@@ -345,3 +345,8 @@ async function renderPlayer(id) {
 async function renderLive(channelId) { if (!caps.playback) throw new Error('Live TV is not available in this version.'); await playerScreen(await new PlayerVM(services).loadLive(channelId)); }
 
 route();
+
+// Offline shell (skipped in sandboxed previews and when the browser has no service workers or a non-secure address).
+if (!memoryRouter && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+  addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { /* optional feature */ }); });
+}

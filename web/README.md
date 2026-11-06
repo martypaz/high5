@@ -25,3 +25,8 @@ The live catalogue belongs to a third party: personal use only, keep request vol
 * `AllSearchVM` fans a search out to every live channel with `Promise.allSettled`; failures are returned beside the groups, never thrown.
 * A catalogue may keep a small cache between page loads: the registry passes `create({store})`; `ItvxCatalogue` uses it to remember its last 50 search results so show pages survive a reload or channel switch (re-validated on read).
 * Never pass `null` to `replaceChildren()`: it prints the text "null". Use `''`.
+
+## Offline shell and CI
+* `sw.js` keeps the app's own files (network first) so it opens offline; it ignores every other origin. Registered only on https or localhost, never in the sandboxed preview.
+* `npm run test:browser` runs both Playwright suites (needs `playwright` installed; CI does `npm install --no-save playwright@1.63.0`). All outside requests are answered by in-browser stubs.
+* Bump `CACHE` in `sw.js` when the list of app files changes.

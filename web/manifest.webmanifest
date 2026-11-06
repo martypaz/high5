@@ -1,1 +1,30 @@
-{ "name": "High5", "short_name": "High5", "start_url": ".", "display": "fullscreen", "background_color": "#0b1320", "theme_color": "#0b1320" }
+{
+  "name": "High5",
+  "short_name": "High5",
+  "description": "Unofficial viewer for UK catalogues (personal use).",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#0b1320",
+  "theme_color": "#0b1320",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

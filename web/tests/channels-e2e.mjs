@@ -90,8 +90,9 @@ try {
   const p3 = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage(); const seen3 = [];
   p3.on('pageerror', (e) => errors.push(e.message));
   const J = (o) => ({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(o) });
-  await p3.route((u) => !['127.0.0.1', 'localhost'].includes(u.hostname), (route) => {
-    const u = new URL(route.request().url()); seen3.push(route.request().method() + ' ' + u.host + u.pathname + (u.pathname.includes('search') ? '?offset=' + u.searchParams.get('offset') : ''));
+  const c5stub = (seen, state = {}) => (route) => {
+    const u = new URL(route.request().url()); seen.push(route.request().method() + ' ' + u.host + u.pathname + (u.pathname.includes('search') ? '?offset=' + u.searchParams.get('offset') : ''));
+    if (u.pathname.endsWith('config.json') && state.failConfigOnce) { state.failConfigOnce = false; return route.fulfill({ status: 500, headers: { 'access-control-allow-origin': '*' }, body: 'x' }); }
     if (u.pathname.endsWith('config.json')) return route.fulfill(J({ dataServiceSettings: { platformId: 'p', coronaBaseUri: 'https://corona.channel5.com', coronaShowQueryTemplateUri: '/shows/search.json?platform={platformId}&genre={genre}&query={query}',
       coronaShowTemplateUri: '/shows/{showId}.json?platform={platformId}', coronaAllEpisodesByShowTemplateUri: '/shows/{showId}/episodes.json?platform={platformId}', ednaBaseUri: 'https://feeds-api.channel5.com',
       ednaCollectionsTemplateUri: '/collections/{collectionId}/concise.json?vod_available={platformId}', ednaBrowseSubNavId: 'PLC_Root',
@@ -102,7 +103,8 @@ try {
     if (u.pathname.endsWith('/shows/search.json')) { const off = Number(u.searchParams.get('offset')); const mk = (i) => ({ id: String(i), title: 'Show ' + i, genre: 'Crime', chan: 'C5', s_desc: 'd', img_upd: 1 });
       return route.fulfill(J(off === 0 ? { total_entries: 3, next_offset: 2, shows: [mk(1), mk(2)] } : { total_entries: 3, shows: [mk(3)] })); }
     return route.fulfill({ status: 404, body: 'blocked in test' });
-  });
+  };
+  await p3.route((u) => !['127.0.0.1', 'localhost'].includes(u.hostname), c5stub(seen3));
   await p3.addInitScript(() => { try { localStorage.setItem('high5.channel', 'channel5'); } catch {} });
   await p3.goto(`http://127.0.0.1:${PORT}/#/browse`); await p3.waitForSelector('main .tile');
   assert.deepEqual(await p3.locator('main .tile .t').allInnerTexts(), ['Crime', 'Documentaries']);
@@ -118,6 +120,26 @@ try {
   await p3.getByRole('link', { name: 'Back to categories' }).click(); await p3.waitForFunction(() => document.querySelector('h1')?.textContent === 'Browse');
   assert.ok(seen3.every((r) => r.startsWith('GET ')), seen3.join(', '));
   assert.equal(await page.locator('#topbar nav a[data-route=browse]').evaluate((a) => getComputedStyle(a).display), 'none');      // channels without browse hide the link
+  // Scenario 4: a failed load offers "Try again" (first config request fails, the retry works).
+  const p4 = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage(); const seen4 = [];
+  p4.on('pageerror', (e) => errors.push(e.message));
+  await p4.route((u) => !['127.0.0.1', 'localhost'].includes(u.hostname), c5stub(seen4, { failConfigOnce: true }));
+  await p4.addInitScript(() => { try { localStorage.setItem('high5.channel', 'channel5'); } catch {} });
+  await p4.goto(`http://127.0.0.1:${PORT}/#/browse`); await p4.waitForSelector('main .error');
+  assert.match(await p4.locator('main .error').innerText(), /error \(500\)/);
+  await p4.getByRole('button', { name: 'Try again' }).click(); await p4.waitForSelector('main .tile');
+  assert.deepEqual(await p4.locator('main .tile .t').allInnerTexts(), ['Crime', 'Documentaries']);
+  // Scenario 5: installed once, the app shell opens with no network (Demo needs none).
+  const ctx5 = await browser.newContext({ viewport: { width: 1280, height: 720 } }); const p5 = await ctx5.newPage();
+  p5.on('pageerror', (e) => errors.push(e.message));
+  await p5.addInitScript(() => { try { localStorage.setItem('high5.channel', 'demo'); } catch {} });
+  await p5.goto(`http://127.0.0.1:${PORT}/#/home`); await p5.waitForFunction(() => /Channel: Demo/.test(document.querySelector('#channel-link')?.textContent ?? ''));
+  await p5.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await p5.waitForFunction(async () => (await caches.keys()).length > 0 && (await (await caches.open((await caches.keys())[0])).keys()).length >= 10, null, { timeout: 15000 });
+  await ctx5.setOffline(true); await p5.reload(); await p5.waitForFunction(() => /Channel: Demo/.test(document.querySelector('#channel-link')?.textContent ?? ''));
+  await p5.waitForSelector('main .tile'); assert.ok((await p5.locator('main .tile').count()) > 0, 'the app opened offline');
+  const manifest = await p5.evaluate(async () => (await fetch('manifest.webmanifest')).json()); assert.ok(manifest.icons.some((i) => i.sizes === '192x192') && manifest.icons.some((i) => i.sizes === '512x512'));
+  console.log('offline scenario: the app shell opened with no network');
   assert.deepEqual(errors, [], errors.join('|'));
   console.log('CHANNELS E2E PASSED\nrequests (all answered by the in-browser stub):\n  ' + external.join('\n  '));
 } catch (e) { await page.screenshot({ path: `${out}/c-FAIL.png` }).catch(() => {}); console.error('CHANNELS E2E FAILED:', e.message, '\nrequests:', external, '\nerrors:', errors); process.exitCode = 1; }
