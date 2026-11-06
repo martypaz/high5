@@ -20,7 +20,19 @@ page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resourc
 const key = async (k, n = 1) => { for (let i = 0; i < n; i++) { await page.keyboard.press(k); await page.waitForTimeout(60); } };
 const text = () => page.locator('body').innerText();
 const focused = () => page.evaluate(() => document.activeElement?.textContent?.trim().slice(0, 60));
-let step = 0; const shot = (n) => page.screenshot({ path: `${out}/${String(++step).padStart(2, '0')}-${n}.png` });
+// Every screenshot is also an accessibility spot-check: controls need a name a screen reader can read, ids must be unique, images are decorative (alt="").
+const a11yProblems = () => page.evaluate(() => {
+  const bad = [], name = (el) => (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '').trim();
+  for (const el of document.querySelectorAll('button, a[href], input, select, [role=button]')) {
+    if (el.type === 'hidden' || el.getBoundingClientRect().width === 0) continue;
+    if (!name(el) && !el.getAttribute('placeholder')) bad.push(`unnamed ${el.tagName.toLowerCase()}`);
+  }
+  const ids = [...document.querySelectorAll('[id]')].map((e) => e.id); for (const id of new Set(ids.filter((v, i) => ids.indexOf(v) !== i))) bad.push(`duplicate id ${id}`);
+  for (const img of document.querySelectorAll('img')) if (img.getAttribute('alt') === null) bad.push('img without alt');
+  if (document.documentElement.lang === '') bad.push('missing lang');
+  return bad;
+});
+let step = 0; const shot = async (n) => { const bad = await a11yProblems(); assert.deepEqual(bad, [], `accessibility on ${n}: ${bad.join(', ')}`); return page.screenshot({ path: `${out}/${String(++step).padStart(2, '0')}-${n}.png` }); };
 
 try {
   await page.goto(`http://127.0.0.1:${PORT}/`);
