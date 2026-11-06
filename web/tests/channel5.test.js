@@ -171,3 +171,44 @@ test('ratings that are only a safety default are flagged as unknown so the UI do
   const unknown = [['config.json', CONFIG], ['/shows/111/episodes.json', { episodes: [ep('a', 1, 1, { rat: 'PG' })] }], ['/shows/111.json', SHOW]];
   assert.equal((await make(unknown).getShow('111')).ratingKnown, false);
 });
+
+// ---- Browse (invented ids; same shapes the collection feeds and search use) ----
+const BCONFIG = { dataServiceSettings: { ...CONFIG.dataServiceSettings, ednaBaseUri: 'https://feeds-api.channel5.com',
+  ednaCollectionsTemplateUri: '/collections/{collectionId}/concise.json?vod_available={platformId}', ednaBrowseSubNavId: 'PLC_Root',
+  coronaBrowseSubGenreTemplateUri: '/shows/search.json?platform={platformId}&offset={offset}&limit={limit}&sort_by={sort_by}&vod_subgenres[]={vodSubgenreIds}' } };
+const ROOT = { id: 'PLC_Root', title: 'Categories', filters: { contents: [{ id: 'PLC_BrowseRecent', title: 'Recently added' }, { id: 'PLC_PGenreCrime', title: 'Crime' }, { id: 'PLC_PGenreDocs', title: 'Documentaries' }, { id: 'bad id', title: 'x' }, { id: 'PLC_PGenreNoTitle', title: '' }, null] } };
+const CRIME = { id: 'PLC_PGenreCrime', title: 'Crime', filters: { contents: [{ id: 'PLC_SGenreHeists', title: 'Heists' }, { id: 'PLC_SGenre../x', title: 'bad' }, { id: 'PLC_Other', title: 'other' }] } };
+const HEISTS = { id: 'PLC_SGenreHeists', title: 'Heists', filters: { type: 'Show', vod_subgenres: [7626766659032] } };
+const PAGE1 = { total_entries: 30, limit: 20, offset: 0, next_offset: 20, size: 2, shows: SEARCH.shows };
+const browseRoutes = [['config.json', BCONFIG], ['/collections/PLC_Root/', ROOT], ['/collections/PLC_PGenreCrime/', CRIME], ['/collections/PLC_SGenreHeists/', HEISTS], ['/shows/search.json', PAGE1]];
+
+test('browse: categories, then sub-categories, then a page of shows; only expected collection ids are used', async () => {
+  const log = [], cat = make(browseRoutes, log);
+  const top = await cat.browse();
+  assert.deepEqual(top.nodes, [{ id: 'c-PLC_PGenreCrime', title: 'Crime' }, { id: 'c-PLC_PGenreDocs', title: 'Documentaries' }]); assert.equal(top.parent, null);
+  const crime = await cat.browse('c-PLC_PGenreCrime');
+  assert.deepEqual(crime.nodes, [{ id: 's-PLC_SGenreHeists', title: 'Heists' }]); assert.equal(crime.title, 'Crime'); assert.equal(crime.parent, '');
+  const page = await cat.browse('s-PLC_SGenreHeists');
+  assert.deepEqual(page.shows.map((x) => x.title), ['Harbour Detectives', 'Orbit Kids']); assert.equal(page.next, 20); assert.equal(page.total, 30); assert.ok(page.shows[0].imageUrl);
+  const u = new URL(log.at(-1).url);
+  assert.equal(u.origin, 'https://corona.channel5.com'); assert.equal(u.searchParams.get('vod_subgenres[]'), '7626766659032'); assert.equal(u.searchParams.get('limit'), '20'); assert.equal(u.searchParams.get('offset'), '0');
+  assert.ok(log.every((l) => l.opts.credentials === 'omit' && !('Authorization' in (l.opts.headers ?? {}))));
+  const more = await cat.browse('s-PLC_SGenreHeists', { offset: 20 }); assert.equal(new URL(log.at(-1).url).searchParams.get('offset'), '20'); assert.ok(more.shows.length);
+  await cat.browse('s-PLC_SGenreHeists', { offset: -5 }); assert.equal(new URL(log.at(-1).url).searchParams.get('offset'), '0');          // bad offsets are ignored
+  await cat.browse('s-PLC_SGenreHeists', { offset: '9; drop' }); assert.equal(new URL(log.at(-1).url).searchParams.get('offset'), '0');
+});
+
+test('browse refuses odd node ids, tolerates thin data, and says so when the config lacks browse settings', async () => {
+  const cat = make(browseRoutes);
+  for (const bad of ['x', 'c-../etc', 's-PLC_a/b', 'c-', '../PLC_x', 'c-PLC_x?y=1']) { const r = await cat.browse(bad); assert.deepEqual([r.nodes, r.shows], [[], []]); }
+  const thin = make([...browseRoutes.slice(0, 3), ['/collections/PLC_SGenreHeists/', { title: 'Heists', filters: { vod_subgenres: ['abc', null] } }]]);
+  assert.deepEqual((await thin.browse('s-PLC_SGenreHeists')).shows, []);                                                                       // non-numeric ids dropped
+  await assert.rejects(() => make([['config.json', CONFIG]]).browse(), /not available/);
+  await assert.rejects(() => make([['config.json', BCONFIG], ['/collections/', {}, 500]]).browse(), /error \(500\)/);
+  assert.equal((await make([['config.json', { dataServiceSettings: { ...BCONFIG.dataServiceSettings, ednaBaseUri: 'https://evil.example.com' } }]]).browse().catch((e) => e.message)), 'Unexpected address in the service configuration.');
+  assert.equal((await make([...browseRoutes.slice(0, 4), ['/shows/search.json', { shows: 'nope', next_offset: 'x' }]]).browse('s-PLC_SGenreHeists')).next, null);
+});
+
+test('search and show pages still work when the config has no browse keys', async () => {
+  const cat = make(); assert.equal((await cat.search('harbour')).length, 2); assert.ok(await cat.getShow('111'));
+});

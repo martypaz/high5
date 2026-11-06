@@ -86,6 +86,38 @@ try {
   await p2.waitForFunction(() => /blocked the reply/.test(document.querySelector('main')?.innerText ?? ''), null, { timeout: 15000 });
   await p2.screenshot({ path: `${out}/c4-cors-explained.png` });
   console.log('cors scenario: the app explained that the browser blocked the reply');
+  // Scenario 3: Browse on Channel 5 (invented catalogue answered inside the browser): categories -> sub-categories -> shows -> "Show more".
+  const p3 = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage(); const seen3 = [];
+  p3.on('pageerror', (e) => errors.push(e.message));
+  const J = (o) => ({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(o) });
+  await p3.route((u) => !['127.0.0.1', 'localhost'].includes(u.hostname), (route) => {
+    const u = new URL(route.request().url()); seen3.push(route.request().method() + ' ' + u.host + u.pathname + (u.pathname.includes('search') ? '?offset=' + u.searchParams.get('offset') : ''));
+    if (u.pathname.endsWith('config.json')) return route.fulfill(J({ dataServiceSettings: { platformId: 'p', coronaBaseUri: 'https://corona.channel5.com', coronaShowQueryTemplateUri: '/shows/search.json?platform={platformId}&genre={genre}&query={query}',
+      coronaShowTemplateUri: '/shows/{showId}.json?platform={platformId}', coronaAllEpisodesByShowTemplateUri: '/shows/{showId}/episodes.json?platform={platformId}', ednaBaseUri: 'https://feeds-api.channel5.com',
+      ednaCollectionsTemplateUri: '/collections/{collectionId}/concise.json?vod_available={platformId}', ednaBrowseSubNavId: 'PLC_Root',
+      coronaBrowseSubGenreTemplateUri: '/shows/search.json?platform={platformId}&offset={offset}&limit={limit}&sort_by={sort_by}&vod_subgenres[]={vodSubgenreIds}' } }));
+    if (u.pathname.includes('/collections/PLC_Root/')) return route.fulfill(J({ title: 'Categories', filters: { contents: [{ id: 'PLC_PGenreCrime', title: 'Crime' }, { id: 'PLC_PGenreDocs', title: 'Documentaries' }] } }));
+    if (u.pathname.includes('/collections/PLC_PGenreCrime/')) return route.fulfill(J({ title: 'Crime', filters: { contents: [{ id: 'PLC_SGenreHeists', title: 'Heists' }] } }));
+    if (u.pathname.includes('/collections/PLC_SGenreHeists/')) return route.fulfill(J({ title: 'Heists', filters: { vod_subgenres: [111] } }));
+    if (u.pathname.endsWith('/shows/search.json')) { const off = Number(u.searchParams.get('offset')); const mk = (i) => ({ id: String(i), title: 'Show ' + i, genre: 'Crime', chan: 'C5', s_desc: 'd', img_upd: 1 });
+      return route.fulfill(J(off === 0 ? { total_entries: 3, next_offset: 2, shows: [mk(1), mk(2)] } : { total_entries: 3, shows: [mk(3)] })); }
+    return route.fulfill({ status: 404, body: 'blocked in test' });
+  });
+  await p3.addInitScript(() => { try { localStorage.setItem('high5.channel', 'channel5'); } catch {} });
+  await p3.goto(`http://127.0.0.1:${PORT}/#/browse`); await p3.waitForSelector('main .tile');
+  assert.deepEqual(await p3.locator('main .tile .t').allInnerTexts(), ['Crime', 'Documentaries']);
+  await p3.screenshot({ path: `${out}/c7-browse-categories.png` });
+  await p3.locator('main .tile', { hasText: 'Crime' }).click(); await p3.waitForFunction(() => document.querySelector('h1')?.textContent === 'Crime');
+  await p3.locator('main .tile', { hasText: 'Heists' }).click(); await p3.waitForFunction(() => document.querySelector('h1')?.textContent === 'Heists');
+  await p3.waitForSelector('main .tile'); assert.deepEqual(await p3.locator('main .tile .t').allInnerTexts(), ['Show 1', 'Show 2']);
+  assert.match(await p3.locator('main').innerText(), /2 shown of 3/);
+  await p3.getByRole('button', { name: 'Show more' }).click(); await p3.waitForFunction(() => document.querySelectorAll('main .tile').length === 3);
+  assert.equal(await p3.getByRole('button', { name: 'Show more' }).count(), 0);
+  assert.match(await p3.locator('main').innerText(), /3 shown of 3/); assert.ok(!/\bnull\b|undefined/.test(await p3.locator('main').innerText()));
+  await p3.screenshot({ path: `${out}/c8-browse-shows.png` });
+  await p3.getByRole('link', { name: 'Back to categories' }).click(); await p3.waitForFunction(() => document.querySelector('h1')?.textContent === 'Browse');
+  assert.ok(seen3.every((r) => r.startsWith('GET ')), seen3.join(', '));
+  assert.equal(await page.locator('#topbar nav a[data-route=browse]').evaluate((a) => getComputedStyle(a).display), 'none');      // channels without browse hide the link
   assert.deepEqual(errors, [], errors.join('|'));
   console.log('CHANNELS E2E PASSED\nrequests (all answered by the in-browser stub):\n  ' + external.join('\n  '));
 } catch (e) { await page.screenshot({ path: `${out}/c-FAIL.png` }).catch(() => {}); console.error('CHANNELS E2E FAILED:', e.message, '\nrequests:', external, '\nerrors:', errors); process.exitCode = 1; }

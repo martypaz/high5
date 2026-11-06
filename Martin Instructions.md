@@ -20,6 +20,7 @@ Written so you can follow it **from a phone**.
 | **ITVX channel** | **Beta - search works** (real results with genres, descriptions and pictures). Show pages list the latest episode only (ITVX keeps full episode lists where a web page can't read them). No home rails or playback. Tested here against the live service and in a real browser |
 | **Skill: read-apk-from-drive** | **Built and tested** (`.claude/skills/read-apk-from-drive`). Reads an APK from Drive and analyses it |
 | **My List** (works across channels) and **Search: This channel / All channels** | **Done and tested.** My List is saved on your device with a small snapshot of each show, so an ITVX item opens from the Channel 5 or Demo view (the app switches channel for you). "All channels" asks Channel 5 and ITVX together and shows results grouped by channel; if one is down it says so and still shows the other |
+| **Browse by category** (Channel 5) | **Done and tested** (checked once against the real service). Browse tab: category, then sub-category, then shows 20 at a time with "Show more". Hidden for channels that don't support it |
 | Poster images (tiles, show banner, episode thumbnails) | **Done** (read-only, loaded straight from the catalogue's image host) |
 | Home rails, TV guide, **video playback** | **Not done.** Home shows a simple page in live mode; episodes list details but can't be played |
 | Your Microsoft developer account | Authorised - **only needed for section 4**, nothing more to buy |
@@ -95,7 +96,7 @@ You approved **read-only search and show pages**. That is what's built:
   and their terms may not allow it. Keep it personal and low-volume.
 
 **Not done, and each needs your separate go-ahead:**
-1. **Home rails and the TV guide** (more catalogue calls).
+1. **Home rails and the TV guide.** (Browse by category is done; home rails return only item ids, so each rail would need one request per show.)
 2. **Anything with your My5 account** (sign-in, My List sync, resume sync). That means acting as the official app on their servers.
 3. **Video playback.** Needs licences and protected streams (PlayReady on Xbox). I will not remove DRM or get around the UK-only/VPN checks.
 The legitimate alternative to all of this is asking Channel 5 about partner access.

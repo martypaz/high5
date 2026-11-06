@@ -12,6 +12,7 @@
 // ratingKnown:false means the rating is only a safety default for the parental lock (fails closed at 4) and must not be shown.
 // `experimental: true` marks a channel still in beta (or not yet verified against its live service); the Channels page shows a "Beta" badge.
 // create(ctx) receives { store } (the app's settings store) so an adapter may keep a small cache between page loads.
+//   browse(nodeId?, {offset}) -> { title, parent:null|string, nodes:[{id,title}], shows:[Card], next:number|null, total }   optional (capabilities.browse)
 // Capabilities tell the shared UI which screens make sense for this channel.
 import { Channel5Catalogue } from './channel5.js';
 import { ItvxCatalogue } from './itvx.js';
@@ -28,7 +29,7 @@ export function storePersist(store, key) {
 
 export const CHANNELS = Object.freeze([
   { id: 'channel5', name: 'Channel 5', kind: 'live', blurb: 'Search and show pages from the real catalogue (read-only).',
-    capabilities: { search: true, show: true, images: true, home: false, guide: false, playback: false }, create: () => new Channel5Catalogue() },
+    capabilities: { search: true, show: true, images: true, browse: true, home: false, guide: false, playback: false }, create: () => new Channel5Catalogue() },
   { id: 'itvx', name: 'ITVX', kind: 'live', experimental: true,
     blurb: 'Beta: search with pictures and descriptions, and the latest episode of each show. No full episode lists or playback yet.',
     capabilities: { search: true, show: true, images: true, home: false, guide: false, playback: false }, create: (ctx) => new ItvxCatalogue({ persist: storePersist(ctx?.store, 'itvx.seen') }) },

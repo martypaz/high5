@@ -61,6 +61,8 @@ export function mapEpisode(e, nowMs, img = () => null) {
   };
 }
 
+const PAGE = 20;
+
 export class Channel5Catalogue {
   constructor({ fetchFn = (...a) => globalThis.fetch(...a), source = SOURCE, now = () => Date.now() } = {}) {
     Object.assign(this, { fetchFn, source, now });
@@ -75,7 +77,10 @@ export class Channel5Catalogue {
         const ds = cfg?.dataServiceSettings ?? {};
         const need = ['coronaBaseUri', 'platformId', 'coronaShowQueryTemplateUri', 'coronaShowTemplateUri', 'coronaAllEpisodesByShowTemplateUri'];
         for (const k of need) if (typeof ds[k] !== 'string' || !ds[k]) throw new Error('The catalogue settings are not in the expected format.');
-        return { base: allowedHost(ds.coronaBaseUri), platform: ds.platformId, query: ds.coronaShowQueryTemplateUri, show: ds.coronaShowTemplateUri, episodes: ds.coronaAllEpisodesByShowTemplateUri, images: typeof ds.ednaImagesTemplateUri === 'string' ? ds.ednaImagesTemplateUri : '' };
+        return { base: allowedHost(ds.coronaBaseUri), platform: ds.platformId, query: ds.coronaShowQueryTemplateUri, show: ds.coronaShowTemplateUri, episodes: ds.coronaAllEpisodesByShowTemplateUri, images: typeof ds.ednaImagesTemplateUri === 'string' ? ds.ednaImagesTemplateUri : '',
+          // Optional (browse). A missing key only switches browsing off; search and show pages keep working.
+          edna: typeof ds.ednaBaseUri === 'string' ? ds.ednaBaseUri : '', collection: typeof ds.ednaCollectionsTemplateUri === 'string' ? ds.ednaCollectionsTemplateUri : '',
+          browseRoot: typeof ds.ednaBrowseSubNavId === 'string' ? ds.ednaBrowseSubNavId : '', subgenre: typeof ds.coronaBrowseSubGenreTemplateUri === 'string' ? ds.coronaBrowseSubGenreTemplateUri : '' };
       })().catch((e) => { this._settings = null; throw e; });
     }
     return this._settings;
@@ -115,11 +120,39 @@ export class Channel5Catalogue {
       rating: known.length === episodes.length && episodes.length ? Math.max(...episodes.map((e) => e.rating)) : card.rating, episodes };
   }
 
+  /**
+   * Browse by category -> sub-category -> shows, using the same public collection feeds and search the app's Browse tab uses (read-only GETs).
+   *   browse()                 -> categories      (the config names the root collection)
+   *   browse('c-<collection>') -> sub-categories of one category
+   *   browse('s-<collection>', { offset }) -> a page of shows in one sub-category (20 at a time)
+   * Returns { title, parent, nodes:[{id,title}], shows:[Card], next:number|null, total }.  `parent` is the node id to go back to (or null for the top).
+   */
+  async browse(node = '', { offset = 0 } = {}) {
+    const s = await this.settings();
+    if (!s.edna || !s.collection || !s.browseRoot || !s.subgenre) throw new Error('Browsing is not available from this catalogue.');
+    const m = /^([cs])-(PLC_\w+)$/.exec(String(node ?? ''));
+    if (node && !m) return { title: 'Browse', parent: null, nodes: [], shows: [], next: null, total: 0 };
+    const base = allowedHost(s.edna);
+    const coll = (id) => this._json(base + fillTemplate(s.collection, { collectionId: id, platformId: s.platform }));
+    const kids = (d, prefix, want) => (Array.isArray(d?.filters?.contents) ? d.filters.contents : [])
+      .filter((c) => c && typeof c.id === 'string' && c.id.startsWith(want) && safeId(c.id) && str(c.title)).map((c) => ({ id: prefix + c.id, title: str(c.title) }));
+    if (!m) { const d = await coll(s.browseRoot); return { title: 'Browse', parent: null, nodes: kids(d, 'c-', 'PLC_PGenre'), shows: [], next: null, total: 0 }; }
+    const d = await coll(m[2]);
+    if (m[1] === 'c') return { title: str(d?.title) || 'Browse', parent: '', nodes: kids(d, 's-', 'PLC_SGenre'), shows: [], next: null, total: 0 };
+    const ids = (Array.isArray(d?.filters?.vod_subgenres) ? d.filters.vod_subgenres : []).map(String).filter((v) => /^\d{1,20}$/.test(v)).slice(0, 1);
+    const title = str(d?.title) || 'Browse';
+    if (!ids.length) return { title, parent: '', nodes: [], shows: [], next: null, total: 0 };
+    const off = Number.isInteger(offset) && offset >= 0 && offset < 10000 ? offset : 0;
+    const page = await this._json(s.base + fillTemplate(s.subgenre, { platformId: s.platform, offset: off, limit: PAGE, sort_by: 'title', vodSubgenreIds: ids[0] }));
+    const img = await this._img();
+    const shows = (Array.isArray(page?.shows) ? page.shows : []).map((x) => mapShowCard(x, img));
+    const next = Number.isInteger(page?.next_offset) && page.next_offset > off ? page.next_offset : null;
+    return { title, parent: '', nodes: [], shows, next, total: num(page?.total_entries, shows.length) };
+  }
+
   // Not available in this read-only build.
   async getEpisode() { return null; }
   async getHomeRails() { return []; }
-  async getGenres() { return []; }
-  async getByGenre() { return []; }
 }
 
 /** Backwards-compatible name. */

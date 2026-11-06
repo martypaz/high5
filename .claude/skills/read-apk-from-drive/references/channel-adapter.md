@@ -20,7 +20,8 @@ All methods are async. Unsupported optional methods return `[]` or `null`.
 ```
 search(query)  -> Card[]            required
 getShow(id)    -> Show | null       required (include episodes)
-getEpisode(id) -> Episode | null    optional   getHomeRails()/getGenres()/getByGenre(g) optional
+getEpisode(id) -> Episode | null    optional   getHomeRails() optional
+browse(nodeId?, {offset}) -> { title, parent, nodes:[{id,title}], shows:Card[], next, total }   optional (capabilities.browse)
 Card    { id, title, genre, kind:'show'|'film', rating:0..4, ratingKnown?:false, imageUrl?, description?, subgenres?, channel? }
 Show    Card & { synopsis, bannerUrl?, episodes:Episode[] }
 Episode { id, showId, showTitle, title, season, episode, synopsis, durationSeconds, rating, ratingCode?, available,
@@ -30,7 +31,7 @@ Episode { id, showId, showTitle, title, season, episode, synopsis, durationSecon
 Ratings are numbers 0..4 (U, PG, 12, 15, 18). Use `ratingMapper({...})` so any unknown code becomes 4 (fail closed). When a rating is only that safety
 default (search results that carry none), set `ratingKnown: false` so the UI does not display it.
 
-`capabilities` tells the shared UI which screens to offer: `search, show, images, home, guide, playback`. Start with `search/show/images` true and the rest false;
+`capabilities` tells the shared UI which screens to offer: `search, show, images, browse, home, guide, playback`. Start with `search/show/images` true and the rest false;
 a flag becomes true only when the adapter really supports it. The UI then hides or explains the rest automatically.
 
 ## Safety rules every adapter keeps (the kit makes these the default)
@@ -51,7 +52,8 @@ a flag becomes true only when the adapter really supports it. The UI then hides 
 4. Tests in `web/tests/<id>.test.js`: URL construction, mapping, fail-closed ratings, host allow-list, error messages, the contract in `channels.test.js` (it iterates every registered channel automatically).
 5. Run `npm test` in `web/`, then the opt-in live smoke test once (`node tests/live-smoke.mjs <query> <outdir>` works for any channel set via `localStorage.high5.channel`).
 6. Docs: update the analysis note, `web/README.md`, and `Martin Instructions.md` (what is done / not done, and the Drive reminder).
-7. Commit; publish with the repo's "Publish web app" workflow if the user wants it live.
+7. Optional extras once the basics work: `browse()` (a category tree), and `create(ctx)` receives `{store}` so an adapter can cache a small list between page loads (see `ItvxCatalogue`, `storePersist`).
+8. Commit; publish with the repo's "Publish web app" workflow if the user wants it live.
 
 ## What a channel can and cannot do
 

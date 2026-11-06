@@ -108,7 +108,7 @@ requestAnimationFrame(pollPad);
 const signedIn = () => isLive || !!services.auth.session || services.store.get('mock.signedIn') === '1';   // live mode is read-only and uses no account
 const routes = {
   home: renderHome, show: renderShow, play: renderPlayer, live: renderLive, search: renderSearch, guide: renderGuide,
-  mylist: renderMyList, settings: renderSettings, signin: renderSignIn, channels: renderChannels,
+  browse: renderBrowse, mylist: renderMyList, settings: renderSettings, signin: renderSignIn, channels: renderChannels,
 };
 function focusFirst() {
   if (matchMedia('(pointer: coarse)').matches) return;     // touch screens: don't pop a focus ring up after each tap
@@ -121,7 +121,7 @@ async function route() {
   const arg = decodeURIComponent(rest.join('/'));
   const target = signedIn() || name === 'signin' || name === 'channels' ? name : 'signin';   // the Channels page never needs a sign-in
   if (target !== name) { replaceRoute('#/signin'); return; }
-  document.querySelectorAll('#topbar nav a').forEach((a) => { a.classList.toggle('active', a.dataset.route === target); if (!caps.guide && a.dataset.route === 'guide') a.style.display = 'none'; });
+  document.querySelectorAll('#topbar nav a').forEach((a) => { a.classList.toggle('active', a.dataset.route === target); if ((!caps.guide && a.dataset.route === 'guide') || (!caps.browse && a.dataset.route === 'browse')) a.style.display = 'none'; });
   const pill = document.getElementById('channel-link'); if (pill) pill.textContent = `Channel: ${channel.name}`;
   document.getElementById('topbar').style.display = target === 'signin' || target === 'play' || target === 'live' ? 'none' : '';
   view.replaceChildren(h('p', { class: 'dim' }, 'Loading…'));
@@ -136,7 +136,7 @@ async function renderHome() {
     view.replaceChildren(h('h1', {}, 'Home'),
       h('p', {}, `${channel.name}: ${channel.blurb}`),
       h('p', { class: 'dim' }, 'Search and show pages work. Browse rails, the TV guide and playback are not built yet.'),
-      h('div', { class: 'row' }, nav({ class: 'btn primary', href: '#/search' }, 'Search shows'), nav({ class: 'btn', href: '#/mylist' }, 'My List')));
+      h('div', { class: 'row' }, nav({ class: 'btn primary', href: '#/search' }, 'Search shows'), caps.browse ? nav({ class: 'btn', href: '#/browse' }, 'Browse by category') : '', nav({ class: 'btn', href: '#/mylist' }, 'My List')));
     return;
   }
   const { rails, continueWatching } = await vms.home.load();
@@ -230,6 +230,27 @@ function crossTile(item, labelled = true) {
     location.hash = `#/show/${encodeURIComponent(item.id)}`; location.reload();
   });
   return t;
+}
+
+/** Browse by category (channels with capabilities.browse): categories -> sub-categories -> shows, 20 at a time. */
+async function renderBrowse(node) {
+  if (!caps.browse) { view.replaceChildren(h('h1', {}, 'Browse'), h('p', { class: 'dim' }, `Browsing is not available for ${channel.name} yet.`)); return; }
+  const r = await services.catalogue.browse(node || '');
+  const grid = h('div', { class: 'grid' }), more = h('div', { class: 'row' }), note = h('p', { class: 'dim' });
+  const draw = (shows) => grid.append(...shows.filter((i) => services.parental.isAllowed(i.rating)).map((i) => tile(i, `#/show/${encodeURIComponent(i.id)}`)));
+  const crumbs = node ? [nav({ class: 'btn', href: r.parent ? `#/browse/${encodeURIComponent(r.parent)}` : '#/browse' }, 'Back to categories')] : [];
+  const nodeTiles = r.nodes.map((n) => nav({ class: 'tile', href: `#/browse/${encodeURIComponent(n.id)}` }, h('span', { class: 't' }, n.title)));
+  draw(r.shows);
+  let next = r.next, hidden = r.shows.length - grid.children.length;
+  const status = () => { note.textContent = r.nodes.length || !node ? (r.nodes.length ? '' : 'Nothing to browse here.') : !grid.children.length && !next ? (hidden ? 'Everything here is hidden by the age limit.' : 'No shows here.') : `${grid.children.length} shown${r.total ? ` of ${r.total}` : ''}${hidden ? `; ${hidden} hidden by the age limit` : ''}.`; };
+  const moreBtn = button('Show more', async () => {
+    moreBtn.disabled = true;
+    try { const p = await services.catalogue.browse(node, { offset: next }); const before = grid.children.length; draw(p.shows); hidden += p.shows.length - (grid.children.length - before); next = p.next; moreBtn.disabled = false; if (!next) moreBtn.remove(); status(); }
+    catch (e) { note.className = 'error'; note.textContent = e.message; moreBtn.disabled = false; }
+  });
+  if (next) more.append(moreBtn);
+  status();
+  view.replaceChildren(h('h1', {}, node ? r.title : 'Browse'), h('div', { class: 'row' }, ...crumbs), r.nodes.length ? h('div', { class: 'grid' }, nodeTiles) : '', grid, note, more);
 }
 
 async function renderMyList() {
