@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1320">
+  <title>High5</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header id="topbar" role="navigation" aria-label="Main">
+    <span class="brand">High5</span>
+    <nav>
+      <a href="#/home"     data-nav data-route="home">Home</a>
+      <a href="#/search"   data-nav data-route="search">Search</a>
+      <a href="#/guide"    data-nav data-route="guide">TV guide</a>
+      <a href="#/mylist"   data-nav data-route="mylist">My List</a>
+      <a href="#/settings" data-nav data-route="settings">Settings</a>
+    </nav>
+  </header>
+  <main id="view" tabindex="-1" aria-live="polite"></main>
+  <div id="toast" role="status"></div>
+  <noscript>High5 needs JavaScript.</noscript>
+  <script type="module" src="js/ui.js"></script>
+</body>
+</html>

@@ -13,6 +13,15 @@ jobs:
         with: { dotnet-version: '8.0.x' }
       - run: dotnet test High5.Core.sln --nologo
 
+  web-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm test
+        working-directory: web
+
   xbox-package:
     # windows-2022 ships VS 2022 with the UWP workload + Windows SDK 19041; windows-latest (newer VS) does not.
     runs-on: windows-2022
