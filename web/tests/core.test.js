@@ -156,3 +156,38 @@ test('LocalStore still works when browser storage is unavailable', () => {
   st.set('a', 1); assert.equal(st.get('a'), '1');
   st.set('a', null); assert.equal(st.get('a'), null);
 });
+
+test('my list keeps snapshots across channels and ignores damaged storage', async () => {
+  const store = new MemoryStore(), cat = new MockCatalogue();
+  const a = new MockMyList(cat, store, 'demo'), b = new MockMyList(cat, store, 'itvx');
+  await a.add('show-bake');
+  await b.add({ id: 'wk99p9x', title: 'Harbour Detectives', genre: 'Drama', kind: 'show', rating: 4, ratingKnown: false, imageUrl: 'https://ovp.itv.com/x.jpg', junk: 'dropped' });
+  const all = await a.get();
+  assert.deepEqual(all.map((i) => [i.channelId, i.id]), [['demo', 'show-bake'], ['itvx', 'wk99p9x']]);
+  assert.equal(all[1].ratingKnown, false); assert.equal(all[1].junk, undefined); assert.equal(all[1].imageUrl, 'https://ovp.itv.com/x.jpg');
+  assert.equal(await a.contains('wk99p9x'), false);               // the same id on another channel is a different item
+  assert.equal(await b.contains('wk99p9x'), true);
+  await b.add({ id: 'wk99p9x', title: 'again' });                  // no duplicates
+  assert.equal((await a.get()).length, 2);
+  await b.remove('wk99p9x'); assert.deepEqual((await a.get()).map((i) => i.id), ['show-bake']);
+  assert.equal(await a.add('no-such-show'), false); assert.equal(await a.add(null), false);
+  store.set('mylist2', '{not json'); assert.deepEqual(await a.get(), []);
+  store.set('mylist2', JSON.stringify([{ id: 5 }, null, 'x', { id: 'ok', channelId: 'demo', title: 't' }])); assert.deepEqual((await a.get()).map((i) => i.id), ['ok']);
+});
+
+test('my list upgrades the old id-only format once, and keeps at most 200 items', async () => {
+  const store = new MemoryStore(), cat = new MockCatalogue(), l = new MockMyList(cat, store, 'demo');
+  store.set('mylist', JSON.stringify(['show-bake', 'show-gone', 'show-wild']));
+  assert.deepEqual((await l.get()).map((i) => i.id), ['show-bake', 'show-wild']);
+  assert.equal(store.get('mylist'), null);
+  const big = new MockMyList(cat, new MemoryStore(), 'demo');
+  for (let i = 0; i < 205; i++) await big.add({ id: 'id' + i, title: 't' + i });
+  const items = await big.get(); assert.equal(items.length, 200); assert.equal(items[199].id, 'id204');
+});
+
+test('show view-model adds a snapshot including the picture', async () => {
+  const d = setup(), vm = new ShowVM(d);
+  assert.equal(await vm.toggleMyList('show-harbour'), true);
+  const [item] = await d.myList.get(); assert.equal(item.title, 'Harbour Detectives'); assert.equal(item.channelId, 'demo');
+  assert.equal(await vm.toggleMyList('nope-nothing'), false);
+});

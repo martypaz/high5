@@ -7,7 +7,7 @@ const store = new LocalStore();
 const channel = pickChannel(store, globalThis.__HIGH5_DEFAULT_CHANNEL__ ?? (globalThis.__HIGH5_DEFAULT_SOURCE__ === 'demo' ? 'demo' : undefined));
 const isLive = channel.kind === 'live';
 const caps = channel.capabilities;           // which screens make sense for this channel
-const services = createServices(store, { catalogue: channel.create() });
+const services = createServices(store, { catalogue: channel.create(), channelId: channel.id });
 services.mode = channel.id;
 const vms = {
   home: new HomeVM(services), show: new ShowVM(services), search: new SearchVM(services), myList: new MyListVM(services), guide: new GuideVM(services),
@@ -196,7 +196,14 @@ async function renderSearch() {
 
 async function renderMyList() {
   const items = await vms.myList.load();
-  view.replaceChildren(h('h1', {}, 'My List'), items.length ? h('div', { class: 'grid' }, items.map((i) => tile(i, `#/show/${encodeURIComponent(i.id)}`))) : h('p', { class: 'dim' }, 'Nothing here yet - add shows from their page.'));
+  // An item from another channel opens that channel first (the page reloads once), then its show page.
+  const open = (i) => (e) => { e.preventDefault(); services.store.set('channel', i.channelId); services.store.set('source', null); location.hash = `#/show/${encodeURIComponent(i.id)}`; location.reload(); };
+  const entry = (i) => {
+    const t = tile(i, `#/show/${encodeURIComponent(i.id)}`, i.channelId !== channel.id ? h('span', { class: 'g' }, `On ${findChannel(i.channelId)?.name ?? i.channelId}`) : null);
+    if (i.channelId !== channel.id && findChannel(i.channelId)) t.addEventListener('click', open(i));
+    return t;
+  };
+  view.replaceChildren(h('h1', {}, 'My List'), items.length ? h('div', { class: 'grid' }, items.map(entry)) : h('p', { class: 'dim' }, 'Nothing here yet - add shows from their page.'));
 }
 
 async function renderGuide() {

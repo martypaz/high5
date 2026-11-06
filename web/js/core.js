@@ -125,13 +125,36 @@ export class MockLive {
   }
 }
 
+/**
+ * My List. Stored on this device as small snapshots (not just ids), so it works across channels: an item remembers which channel it came
+ * from, and the list can be drawn without asking any service. Items from older versions (a plain list of ids) are upgraded on first use.
+ */
+export const MY_LIST_KEY = 'mylist2', MY_LIST_MAX = 200;
+const snapshot = (s, channelId) => ({ channelId, id: String(s.id), title: String(s.title ?? ''), genre: s.genre ?? '', kind: s.kind === 'film' ? 'film' : 'show',
+  rating: s.rating ?? AgeRating.Eighteen, ratingKnown: s.ratingKnown === false ? false : undefined, imageUrl: s.imageUrl ?? undefined });
 export class MockMyList {
-  constructor(catalogue, store) { this.cat = catalogue; this.store = store; }
-  _ids() { try { return JSON.parse(this.store.get('mylist') ?? '[]'); } catch { return []; } }
-  async get() { const out = []; for (const id of this._ids()) { const s = await this.cat.getShow(id); if (s) out.push(card(s)); } return out; }
-  async contains(id) { return this._ids().includes(id); }
-  async add(id) { const ids = this._ids(); if (!ids.includes(id)) { ids.push(id); this.store.set('mylist', JSON.stringify(ids)); } }
-  async remove(id) { this.store.set('mylist', JSON.stringify(this._ids().filter((x) => x !== id))); }
+  constructor(catalogue, store, channelId = 'demo') { this.cat = catalogue; this.store = store; this.channelId = channelId; }
+  _items() {
+    try { const v = JSON.parse(this.store.get(MY_LIST_KEY) ?? '[]'); return Array.isArray(v) ? v.filter((i) => i && typeof i.id === 'string' && typeof i.channelId === 'string') : []; } catch { return []; }
+  }
+  _save(items) { this.store.set(MY_LIST_KEY, JSON.stringify(items.slice(-MY_LIST_MAX))); }
+  async _upgrade() {
+    let old; try { old = JSON.parse(this.store.get('mylist') ?? 'null'); } catch { old = null; }
+    if (!Array.isArray(old)) return;
+    this.store.set('mylist', null);                                   // done once, whatever happens next
+    for (const id of old) { try { const sh = await this.cat.getShow(String(id)); if (sh) await this.add(sh); } catch { /* skip what cannot be looked up now */ } }
+  }
+  async get() { await this._upgrade(); return this._items().map((i) => ({ ...i })); }
+  async contains(id) { await this._upgrade(); return this._items().some((i) => i.channelId === this.channelId && i.id === String(id)); }
+  /** Accepts a show/card, or an id (looked up in the current channel). */
+  async add(itemOrId) {
+    const src = typeof itemOrId === 'string' ? await this.cat.getShow(itemOrId) : itemOrId;
+    if (!src || src.id == null) return false;
+    const items = this._items();
+    if (items.some((i) => i.channelId === this.channelId && i.id === String(src.id))) return true;
+    items.push(snapshot(src, this.channelId)); this._save(items); return true;
+  }
+  async remove(id) { this._save(this._items().filter((i) => !(i.channelId === this.channelId && i.id === String(id)))); }
 }
 
 export class MockResume {
@@ -195,7 +218,8 @@ export class ShowVM {
   }
   async toggleMyList(showId) {
     if (await this.myList.contains(showId)) { await this.myList.remove(showId); return false; }
-    await this.myList.add(showId); return true;
+    const show = await this.catalogue.getShow(showId);
+    return show ? this.myList.add(show) : false;
   }
 }
 
@@ -270,9 +294,9 @@ export class PlayerVM {
   }
 }
 
-export function createServices(store, { catalogue = new MockCatalogue() } = {}) {
+export function createServices(store, { catalogue = new MockCatalogue(), channelId = 'demo' } = {}) {
   return {
     store, catalogue, live: new MockLive(), auth: new MockAuth(), parental: new ParentalControl(store),
-    myList: new MockMyList(catalogue, store), resume: new MockResume(store), playback: new MockPlayback(),
+    myList: new MockMyList(catalogue, store, channelId), resume: new MockResume(store), playback: new MockPlayback(),
   };
 }
