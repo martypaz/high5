@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: not-an-apk-request
+expected_outcome: |
+  Does not use the APK skill; handles it as an ordinary Drive document request.

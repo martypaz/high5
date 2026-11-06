@@ -16,6 +16,9 @@ Written so you can follow it **from a phone**.
 | Xbox app version (UWP) | Builds and packages on GitHub's Windows machines, but installing it needs Xbox **Developer Mode** - see section 4 (I don't recommend it, given what happened last time) |
 | **Live search + show pages (read-only)** | **Built and tested in a real browser.** Real shows, series, episodes, lengths, ratings, availability dates. GET requests only, no account. Used in the web version |
 | Live sign-in, My List sync, resume sync | Written and unit-tested against a fake server only. Never run against the real service (the web version doesn't use them) |
+| **Channels** (Channel 5, ITVX, Demo - same screens and styling) | **Built.** Switch in the top bar ("Channel: ...") |
+| **ITVX channel** | **Experimental and untested.** Search only, built from the app's code. I have not been able to call ITV's servers, so **your browser makes the first real request** - see section 6 |
+| **Skill: read-apk-from-drive** | **Built and tested** (`.claude/skills/read-apk-from-drive`). Reads an APK from Drive and analyses it |
 | Poster images (tiles, show banner, episode thumbnails) | **Done** (read-only, loaded straight from the catalogue's image host) |
 | Home rails, TV guide, **video playback** | **Not done.** Home shows a simple page in live mode; episodes list details but can't be played |
 | Your Microsoft developer account | Authorised - **only needed for section 4**, nothing more to buy |
@@ -98,7 +101,21 @@ The legitimate alternative to all of this is asking Channel 5 about partner acce
 
 ---
 
-## 6. Where everything is
+## 6. Trying ITVX (you do the first call)
+
+1. Open the app, tap the **Channel: ...** pill at the top, choose **ITVX**.
+2. Go to **Search**, type at least two letters, wait half a second.
+3. Either results appear (tell me!) or a red error line appears under the search box. **Send me a screenshot of that line**; the number in brackets (for example 401 or 403) tells me whether the service wants something this app can't provide.
+4. ITVX shows titles, pictures and episode counts only. Programme pages, playback and accounts are not built.
+
+Ratings are not shown for ITVX (the search gives none) and the parental lock treats everything as 18, so a low age limit hides all ITVX results. That is deliberate.
+
+## 7. Adding more channels later
+
+Put the next app's APK (or split-apks zip) in Drive and ask me to add it. I use the `read-apk-from-drive` skill. If the Drive file is private I'll ask you to
+set it to **Anyone with the link** for a while - and you then switch it **back to Restricted** when I say it's done. **Right now: the ITVX file may still be shared by link. Please switch it back to Restricted.**
+
+## 8. Where everything is
 
 | Path | What it is |
 |---|---|
@@ -106,12 +123,15 @@ The legitimate alternative to all of this is asking Channel 5 about partner acce
 | `web/` | **The web version** (static HTML/JS) - start here |
 | `src/High5.Core`, `src/High5.Xbox` | The Xbox (UWP) version and its tested logic |
 | `docs/analysis/my5-7.26.6.md` | What the reverse-engineering found |
+| `.claude/skills/read-apk-from-drive/` | The skill (instructions + scripts + tests) |
+| `web/js/channels/` | One file per channel; `kit.js` has the shared safety checks |
 | `.github/workflows/` | `ci.yml` builds + tests everything; `pages.yml` publishes the web version |
 
-## 7. Checklist
+## 9. Checklist
 
 - [ ] Pick a hosting option in 2a (or tell me which you prefer) - this is the next blocker
 - [ ] Open the web version on your phone, then on the Xbox Edge, and send me what you see
 - [ ] Decide what to do about section 5 (real data)
-- [ ] Switch off the **link sharing** on the My5 APK file in your Google Drive (it could be opened without a login)
+- [ ] Switch off the **link sharing** on the My5 *and* ITVX APK files in your Google Drive (they could be opened without a login)
+- [ ] Try the ITVX channel (section 6) and send me what you see
 - [ ] Section 4 only if you ever want to - not needed

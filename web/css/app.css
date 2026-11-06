@@ -8,6 +8,9 @@ body::before { content:""; position:fixed; inset:0 0 auto; height:env(safe-area-
 .brand { font-weight:800; font-size:1.6rem; letter-spacing:.04em; color:var(--accent); }
 nav { display:flex; gap:.5rem; }
 nav a, .btn { padding:.55rem 1.1rem; border-radius:.5rem; background:transparent; border:2px solid transparent; font-size:1.05rem; color:var(--text); cursor:pointer; font-family:inherit; }
+button.tile { border:0; color:var(--text); font:inherit; text-align:left; cursor:pointer; }
+button.tile[aria-pressed="true"] { outline:3px solid var(--accent); }
+.channel-pill { padding:.35rem .9rem; border-radius:2rem; background:var(--panel); font-size:.95rem; border:2px solid transparent; }
 nav a.active { border-bottom:3px solid var(--accent); }
 .btn { background:var(--panel); }
 .btn.primary, .btn[aria-pressed="true"] { background:var(--accent); }

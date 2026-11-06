@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LiveCatalogue, fillTemplate, ratingFromCode, mapEpisode, mapShowCard, buildImageUrl, SOURCE } from '../js/live.js';
+import { LiveCatalogue, fillTemplate, ratingFromCode, mapEpisode, mapShowCard, buildImageUrl, SOURCE } from '../js/channels/channel5.js';
 import { SearchVM, ShowVM, ParentalControl, MemoryStore, MockMyList, MockResume } from '../js/core.js';
 
 // Invented content, shaped like the real responses (field names from the official app's data).
@@ -93,10 +93,10 @@ test('bad ids, 404s and missing shows return null/throw cleanly', async () => {
 
 test('rejects a config that points somewhere other than channel5.com, or is malformed', async () => {
   const evil = { dataServiceSettings: { ...CONFIG.dataServiceSettings, coronaBaseUri: 'https://evil.example.com' } };
-  await assert.rejects(() => make([['config.json', evil]]).search('ab'), /Unexpected catalogue address/);
+  await assert.rejects(() => make([['config.json', evil]]).search('ab'), /Unexpected address/);
   await assert.rejects(() => make([['config.json', { dataServiceSettings: {} }]]).search('ab'), /expected format/);
   const http = { dataServiceSettings: { ...CONFIG.dataServiceSettings, coronaBaseUri: 'http://corona.channel5.com' } };
-  await assert.rejects(() => make([['config.json', http]]).search('ab'), /Unexpected catalogue address/);
+  await assert.rejects(() => make([['config.json', http]]).search('ab'), /Unexpected address/);
 });
 
 test('unreadable or failing responses give friendly errors', async () => {

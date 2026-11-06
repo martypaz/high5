@@ -1,4 +1,4 @@
-// High5 web - READ-ONLY live catalogue (search + show pages).
+// High5 web - channel: Channel 5 (My5). READ-ONLY live catalogue (search + show pages + images).
 //
 // How it works (from the official Android app 7.26.6, see docs/analysis):
 //   1. The app downloads a public config document at start-up. It is served without login and with CORS "*".
@@ -9,31 +9,26 @@
 // Not implemented on purpose: sign-in, anything that writes, playback / licences, region or VPN workarounds.
 // Personal use only; this talks to a third party's servers - keep request volume low (search is debounced in the UI).
 
+import { fillTemplate, allowedOrigin, safeId, str, num, getJson, ratingMapper } from './kit.js';
+export { fillTemplate };
+
 export const SOURCE = Object.freeze({
   configUrl: 'https://cassie.channel5.com/platform/my5androidng/config.json',
   configLabel: '7.26.6',
 });
 
-/** Fills {name} placeholders (URL-encoded); unused placeholders become empty, like the official app does. */
-export function fillTemplate(template, params = {}) {
-  return String(template).replace(/\{(\w+)\}/g, (_, k) => (params[k] == null ? '' : encodeURIComponent(String(params[k]))));
-}
-
 // The data only showed "G" and "G+" (observed on a handful of shows). Their exact meaning is not documented, so
 // "G" is treated as Universal, "G+" as PG, and ANY other/unknown code as 18 (fail closed for the parental lock).
 const RATING_BY_CODE = { G: 0, 'G+': 1 };
-export function ratingFromCode(code) { return Object.hasOwn(RATING_BY_CODE, code) ? RATING_BY_CODE[code] : 4; }
+export const ratingFromCode = ratingMapper(RATING_BY_CODE);
 
-function allowedHost(url) {
-  const u = new URL(url);
-  if (u.protocol !== 'https:' || !(u.hostname === 'channel5.com' || u.hostname.endsWith('.channel5.com'))) throw new Error('Unexpected catalogue address in the app config.');
-  return u.origin;
-}
+const C5_DOMAINS = ['channel5.com'];
+const allowedHost = (url) => allowedOrigin(url, C5_DOMAINS);
 
 /** Builds a poster URL from the config's image template. Returns null (no image) for anything unexpected. */
 export function buildImageUrl(template, { type, id, resolution, updated } = {}) {
   if (typeof template !== 'string' || !template) return null;
-  if (!['show', 'episode'].includes(type) || !/^[\w-]+$/.test(String(id ?? '')) || !/^\d{2,4}x\d{2,4}$/.test(String(resolution ?? ''))) return null;
+  if (!['show', 'episode'].includes(type) || !safeId(id) || !/^\d{2,4}x\d{2,4}$/.test(String(resolution ?? ''))) return null;
   try {
     const u = new URL(fillTemplate(template, { type, id, resolution, fmt: 'jpg', time: updated || '', overlayType: '', master: '' }));
     allowedHost(u.href);
@@ -42,8 +37,6 @@ export function buildImageUrl(template, { type, id, resolution, updated } = {}) 
   } catch { return null; }
 }
 
-const str = (v, d = '') => (typeof v === 'string' ? v : d);
-const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
 export function mapShowCard(s, img = () => null) {
   return {
@@ -68,7 +61,7 @@ export function mapEpisode(e, nowMs, img = () => null) {
   };
 }
 
-export class LiveCatalogue {
+export class Channel5Catalogue {
   constructor({ fetchFn = (...a) => globalThis.fetch(...a), source = SOURCE, now = () => Date.now() } = {}) {
     Object.assign(this, { fetchFn, source, now });
     this._settings = null;
@@ -88,13 +81,7 @@ export class LiveCatalogue {
     return this._settings;
   }
 
-  async _json(url) {
-    let res;
-    try { res = await this.fetchFn(url, { headers: { Accept: 'application/json' }, credentials: 'omit', referrerPolicy: 'no-referrer' }); }
-    catch { throw new Error('Could not reach the catalogue. Check your connection (the catalogue may only be reachable in the UK).'); }
-    if (!res.ok) throw new Error(`The catalogue returned an error (${res.status}).`);
-    try { return await res.json(); } catch { throw new Error('The catalogue sent a response this app could not read.'); }
-  }
+  _json(url) { return getJson(this.fetchFn, url); }
 
   async _img() {
     const { images } = await this.settings();
@@ -115,7 +102,7 @@ export class LiveCatalogue {
   }
 
   async getShow(id) {
-    if (!/^[\w-]+$/.test(String(id ?? ''))) return null;
+    if (!safeId(id)) return null;
     const [show, eps] = await Promise.all([this._get('show', { showId: id }), this._get('episodes', { showId: id })]);
     if (!show?.id) return null;
     const now = this.now(), img = await this._img();
@@ -134,3 +121,6 @@ export class LiveCatalogue {
   async getGenres() { return []; }
   async getByGenre() { return []; }
 }
+
+/** Backwards-compatible name. */
+export const LiveCatalogue = Channel5Catalogue;

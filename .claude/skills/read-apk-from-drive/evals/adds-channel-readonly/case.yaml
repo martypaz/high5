@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: adds-channel-readonly
+expected_outcome: |
+  Analyses the APK, writes a channel adapter that uses the shared kit and registry, keeps requests anonymous and read-only, uses invented test fixtures, and does not commit the APK or any secrets.
