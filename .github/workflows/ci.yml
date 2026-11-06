@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  core-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet test High5.Core.sln --nologo
+
+  xbox-package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Create a throw-away signing certificate (sideload only)
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=High5Personal" `
+            -KeyUsage DigitalSignature -FriendlyName "High5 sideload" -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+          $pwd = ConvertTo-SecureString -String "high5-ci" -Force -AsPlainText
+          New-Item -ItemType Directory -Force -Path signing | Out-Null
+          Export-PfxCertificate -Cert $cert -FilePath signing\High5.pfx -Password $pwd | Out-Null
+          Export-Certificate -Cert $cert -FilePath signing\High5.cer | Out-Null
+
+      - name: Restore
+        run: msbuild src\High5.Xbox\High5.Xbox.csproj -t:Restore -p:Configuration=Release -p:Platform=x64
+
+      - name: Build and package (x64, sideload)
+        run: >
+          msbuild src\High5.Xbox\High5.Xbox.csproj
+          -p:Configuration=Release -p:Platform=x64
+          -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly
+          -p:AppxPackageDir="${{ github.workspace }}\AppPackages\"
+          -p:AppxPackageSigningEnabled=true
+          -p:PackageCertificateKeyFile="${{ github.workspace }}\signing\High5.pfx"
+          -p:PackageCertificatePassword=high5-ci
+          -p:GenerateAppxPackageOnBuild=true
+          -v:minimal
+
+      - name: Collect output (public certificate only)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Copy-Item -Recurse AppPackages\* out\
+          Copy-Item signing\High5.cer out\
+          Get-ChildItem -Recurse out | Select-Object FullName, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: high5-xbox-sideload
+          path: out
