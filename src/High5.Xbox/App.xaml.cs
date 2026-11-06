@@ -29,7 +29,12 @@ namespace High5.Xbox
             public static readonly IPlaybackService Playback = new MockPlayback();
         }
 
-        public App() { InitializeComponent(); }
+        public App()
+        {
+            InitializeComponent();
+            // Xbox: gamepad/remote only - never switch to the mouse-mode cursor.
+            RequiresPointer = RequiresPointer.Never;
+        }
 
         protected override void OnLaunched(LaunchActivatedEventArgs e)
         {

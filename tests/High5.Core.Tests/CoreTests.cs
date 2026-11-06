@@ -233,9 +233,10 @@ namespace High5.Core.Tests
         }
         [Fact] public void Known_paths_match_the_analysis()
         {
-            Assert.Equal("activationPins/123/poll", UserServiceEndpoints.ActivationPinPoll("123"));
-            Assert.Equal("resumePoints/show/s1", UserServiceEndpoints.ResumePointsForShow("s1"));
+            Assert.Equal("activationPins/123/poll?longPoll=false", UserServiceEndpoints.ActivationPinPoll("123"));
+            Assert.Equal("/resumePoints/show/s1", UserServiceEndpoints.ResumePointsForShow("s1"));
             Assert.Equal("favourites/sync", UserServiceEndpoints.FavouritesSync);
+            Assert.Equal("/collections/mylist.json?platform=p%20q&milkshake=false", UserServiceEndpoints.MyListCollection("p q", false));
         }
     }
 }

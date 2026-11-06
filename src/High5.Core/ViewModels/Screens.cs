@@ -73,7 +73,7 @@ namespace High5.Core.ViewModels
         {
             Show = await _cat.GetShowAsync(showId, ct) ?? throw new InvalidOperationException("Show not found.");
             InMyList = await _list.ContainsAsync(showId, ct);
-            var points = (await _resume.GetAllAsync(ct)).Where(r => r.ShowId == showId && !r.IsFinished).ToList();
+            var points = (await _resume.GetForShowAsync(showId, ct)).Where(r => !r.IsFinished).OrderByDescending(r => r.UpdatedAt).ToList();
             var resumeEp = points.Count > 0 ? Show.Episodes.FirstOrDefault(e => e.Id == points[0].EpisodeId) : null;
             NextToWatch = resumeEp ?? Show.Episodes.OrderBy(e => e.SeasonNumber).ThenBy(e => e.EpisodeNumber).FirstOrDefault();
             SelectedSeason = Seasons.FirstOrDefault(s => s == (NextToWatch?.SeasonNumber ?? 1));

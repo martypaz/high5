@@ -136,6 +136,8 @@ namespace High5.Core.Mock
             Task.FromResult<IReadOnlyList<ResumePoint>>(_d.Values.OrderByDescending(r => r.UpdatedAt).ToList());
         public Task<ResumePoint?> GetAsync(string episodeId, CancellationToken ct = default) =>
             Task.FromResult(_d.TryGetValue(episodeId, out var r) ? r : null);
+        public Task<IReadOnlyList<ResumePoint>> GetForShowAsync(string showId, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<ResumePoint>>(_d.Values.Where(r => r.ShowId == showId).OrderByDescending(r => r.UpdatedAt).ToList());
         public Task SaveAsync(ResumePoint point, CancellationToken ct = default) { _d[point.EpisodeId] = point; return Task.CompletedTask; }
     }
 

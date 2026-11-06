@@ -45,6 +45,7 @@ namespace High5.Core.Services
     {
         Task<IReadOnlyList<ResumePoint>> GetAllAsync(CancellationToken ct = default);
         Task<ResumePoint?> GetAsync(string episodeId, CancellationToken ct = default);
+        Task<IReadOnlyList<ResumePoint>> GetForShowAsync(string showId, CancellationToken ct = default);
         Task SaveAsync(ResumePoint point, CancellationToken ct = default);
     }
 
