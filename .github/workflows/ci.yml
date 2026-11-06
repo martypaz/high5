@@ -14,10 +14,18 @@ jobs:
       - run: dotnet test High5.Core.sln --nologo
 
   xbox-package:
-    runs-on: windows-latest
+    # windows-2022 ships VS 2022 with the UWP workload + Windows SDK 19041; windows-latest (newer VS) does not.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
+
+      - name: Show installed Windows SDK / UWP platform (diagnostics)
+        shell: pwsh
+        run: |
+          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP" -ErrorAction SilentlyContinue | Select-Object Name
+          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -ErrorAction SilentlyContinue | Select-Object Name
+          msbuild -version
 
       - name: Create a throw-away signing certificate (sideload only)
         shell: pwsh
