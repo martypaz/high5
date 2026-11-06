@@ -11,7 +11,7 @@ An unofficial **Xbox (UWP) client modelled on the My5 / Channel 5 Android app**.
 ## What exists
 | Part | State |
 |---|---|
-| `web/` - static HTML/JS version for the **Xbox Edge browser** (no Developer Mode): same screens/logic, D-pad + gamepad navigation | **Built and tested** (17 unit tests, keyboard-driven browser test). Not tried on a real Xbox |
+| `web/` - static HTML/JS version for the **Xbox Edge browser** (no Developer Mode): same screens/logic, D-pad + gamepad navigation | **Built and tested** (68 unit tests, keyboard-driven and channel browser tests, run in CI). Channels: Channel 5 (search, browse, show pages with episodes, pictures), ITVX (beta: search, latest episode), Demo. Cross-channel My List and search, offline shell. Read-only, no playback. Not tried on a real Xbox |
 | `src/High5.Core` - models, service interfaces, view-models, parental PIN, resume logic, HTTP client for the known paths | **Built and tested** (31 xunit tests, `dotnet test High5.Core.sln`) |
 | `src/High5.Xbox` - UWP XAML shell (sign-in, home, show, search, My List, TV guide, settings, player) | **Compiles and packages in GitHub Actions** (Windows runner); never run on a real Xbox yet. See `Martin Instructions.md` |
 | Data | Mock catalogue (invented titles) and a public test stream. Real back end not wired up. |
