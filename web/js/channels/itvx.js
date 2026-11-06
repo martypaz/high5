@@ -67,10 +67,38 @@ export function mapResult(r) {
   };
 }
 
+export const SEEN_MAX = 50;
+
+/** Re-checks a card read back from storage: right shapes, safe ids, picture links only on ITV domains. */
+export function revive(c) {
+  if (!c || typeof c !== 'object' || !safeId(c.id) || !str(c.title)) return null;
+  const img = (u) => { try { return typeof u === 'string' && u ? allowedOrigin(u, ITVX.domains) && u : null; } catch { return null; } };
+  const l = c._latest && typeof c._latest === 'object' ? c._latest : {};
+  return { id: String(c.id), title: str(c.title), kind: c.kind === 'film' ? 'film' : 'show', genre: str(c.genre), channel: 'ITVX',
+    subgenres: Array.isArray(c.subgenres) ? c.subgenres.map(str).filter(Boolean).slice(0, 6) : [], description: str(c.description),
+    imageUrl: img(c.imageUrl), rating: itvxRatingFromCode(undefined), ratingKnown: false,
+    _latest: { episodeId: safeId(l.episodeId) ? String(l.episodeId) : '', total: num(l.total, 0), kind: l.kind === 'film' ? 'film' : 'show', durationSeconds: num(l.durationSeconds, 0), imageUrl: img(l.imageUrl) } };
+}
+
 export class ItvxCatalogue {
-  constructor({ fetchFn = (...a) => globalThis.fetch(...a), source = ITVX } = {}) {
-    Object.assign(this, { fetchFn, source });
+  /** `persist` = { load(): Card[], save(Card[]) } lets show pages survive a reload or a channel switch (see rememberSearches). */
+  constructor({ fetchFn = (...a) => globalThis.fetch(...a), source = ITVX, persist = null } = {}) {
+    Object.assign(this, { fetchFn, source, persist });
     this._seen = new Map();             // id -> Card from recent searches (search results are the only data this adapter has)
+    this._loaded = false;
+  }
+
+  _restore() {
+    if (this._loaded) return; this._loaded = true;
+    let saved = []; try { saved = this.persist?.load() ?? []; } catch { /* storage blocked */ }
+    for (const c of Array.isArray(saved) ? saved : []) { const k = revive(c); if (k && !this._seen.has(k.id)) this._seen.set(k.id, k); }
+  }
+
+  _remember(cards) {
+    this._restore();
+    for (const c of cards) { this._seen.delete(c.id); this._seen.set(c.id, c); }
+    while (this._seen.size > SEEN_MAX) this._seen.delete(this._seen.keys().next().value);
+    try { this.persist?.save([...this._seen.values()]); } catch { /* storage blocked or full */ }
   }
 
   async search(query) {
@@ -81,8 +109,8 @@ export class ItvxCatalogue {
     const base = allowedOrigin(s.searchBase, s.domains);
     const data = await getJson(this.fetchFn, `${base}${s.searchPath}?${params}`);
     const cards = (Array.isArray(data?.results) ? data.results : []).map(mapResult).filter(Boolean);
-    for (const c of cards) this._seen.set(c.id, c);
-    return cards;
+    this._remember(cards);
+    return cards.map(({ _latest, ...card }) => card);
   }
 
   /**
@@ -91,6 +119,7 @@ export class ItvxCatalogue {
    * so that is what we list, with a note saying so.
    */
   async getShow(id) {
+    this._restore();
     const c = this._seen.get(String(id ?? ''));
     if (!c) return null;
     const { _latest: l, ...card } = c;

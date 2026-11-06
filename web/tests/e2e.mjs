@@ -53,7 +53,7 @@ try {
   assert.match(await text(), /My List/); await shot('mylist');
 
   // Search (latest wins; typed via keyboard)
-  await page.goto(`http://127.0.0.1:${PORT}/#/search`); await page.waitForSelector('input[type=search]');
+  await page.goto(`http://127.0.0.1:${PORT}/#/search`); await page.waitForSelector('input[type=search]'); assert.ok(!/\bnull\b|undefined/.test(await page.locator('main').innerText()), 'no stray null text on the search page');
   await page.locator('input[type=search]').focus(); await page.keyboard.type('bake', { delay: 40 });
   await page.waitForSelector('.grid .tile'); assert.match(await text(), /The Great Village Bake/); await shot('search');
 

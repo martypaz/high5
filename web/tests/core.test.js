@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AgeRating, MemoryStore, LocalStore, ParentalControl, MockCatalogue, MockLive, MockMyList, MockResume, MockPlayback, MockAuth,
-  HomeVM, ShowVM, SearchVM, MyListVM, GuideVM, SignInVM, PlayerVM, isFinished, progressOf } from '../js/core.js';
+  HomeVM, ShowVM, SearchVM, AllSearchVM, MyListVM, GuideVM, SignInVM, PlayerVM, isFinished, progressOf } from '../js/core.js';
 
 const setup = () => {
   const store = new MemoryStore(), catalogue = new MockCatalogue();
@@ -190,4 +190,22 @@ test('show view-model adds a snapshot including the picture', async () => {
   assert.equal(await vm.toggleMyList('show-harbour'), true);
   const [item] = await d.myList.get(); assert.equal(item.title, 'Harbour Detectives'); assert.equal(item.channelId, 'demo');
   assert.equal(await vm.toggleMyList('nope-nothing'), false);
+});
+
+test('search across channels: grouped, tagged, parental-filtered, one failure does not hide the rest, last request wins', async () => {
+  const mk = (id, items, fail) => ({ id, name: id.toUpperCase(), catalogue: { search: async (q) => { if (fail) throw new Error('down'); return items.map((t) => ({ id: t, title: t, rating: t.startsWith('x') ? 4 : 0, kind: 'show' })); } } });
+  const parental = new ParentalControl(new MemoryStore());
+  const vm = new AllSearchVM({ parental, sources: [mk('a', ['one', 'xtwo']), mk('b', [], true), mk('c', ['three'])] });
+  const r = await vm.search('  ab ');
+  assert.equal(r.query, 'ab');
+  assert.deepEqual(r.groups.map((g) => [g.channelId, g.results.map((i) => i.id)]), [['a', ['one', 'xtwo']], ['c', ['three']]]);
+  assert.ok(r.groups.every((g) => g.results.every((i) => i.channelId === g.channelId)));
+  assert.deepEqual(r.failures, [{ channelId: 'b', name: 'B', message: 'down' }]);
+  await parental.setMaxRating(AgeRating.PG, '');
+  assert.deepEqual((await vm.search('ab')).groups[0].results.map((i) => i.id), ['one']);
+  assert.deepEqual(await vm.search('   '), { query: '', groups: [], failures: [], stale: false });
+  let release; const slow = { id: 's', name: 'S', catalogue: { search: (q) => new Promise((res) => { if (q === 'old') release = () => res([{ id: 'o', title: 'o', rating: 0 }]); else res([]); }) } };
+  const vm2 = new AllSearchVM({ parental, sources: [slow] });
+  const first = vm2.search('old'); const second = await vm2.search('new'); release();
+  assert.equal(second.stale, false); assert.equal((await first).stale, true);
 });

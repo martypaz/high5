@@ -125,3 +125,21 @@ test('registered as a beta, search-only channel and works with the shared view-m
   await parental.setMaxRating(1, '');                                           // any limit below 18 hides everything (no known ratings)
   assert.equal((await new SearchVM({ catalogue: new ItvxCatalogue({ fetchFn: fakeFetch(RESPONSE) }), parental }).search('harbour')).results.length, 0);
 });
+
+test('ITVX remembers searches between page loads, re-checks what it reads back, and keeps at most 50', async () => {
+  let disk = null; const persist = { load: () => disk, save: (v) => { disk = JSON.parse(JSON.stringify(v)); } };
+  const first = new ItvxCatalogue({ fetchFn: fakeFetch(RESPONSE), persist });
+  const found = await first.search('harbour');
+  assert.ok(found.every((c) => !('_latest' in c)));                               // internal bookkeeping stays out of search results
+  assert.ok(Array.isArray(disk) && disk.length === 3);
+  const reloaded = new ItvxCatalogue({ fetchFn: async () => { throw new Error('no network needed'); }, persist });
+  const s = await reloaded.getShow('wk99p9x');
+  assert.equal(s.title, 'Harbour Detectives'); assert.equal(s.episodes[0].id, 'e1'); assert.match(s.episodesNote, /3 available/);
+  disk = [{ id: '../evil', title: 'x' }, { id: 'ok1', title: 'Fine', imageUrl: 'https://evil.example.com/a.jpg', _latest: { episodeId: '../bad', imageUrl: 'http://itv.com/x.jpg' } }, 7, null, { id: 'ok2' }];
+  const tampered = new ItvxCatalogue({ persist });
+  assert.equal(await tampered.getShow('../evil'), null); assert.equal(await tampered.getShow('ok2'), null);
+  const ok = await tampered.getShow('ok1'); assert.equal(ok.imageUrl, null); assert.deepEqual(ok.episodes[0] && ok.episodes.length === 1 ? ['one'] : [], ['one']);   // no episode id -> falls back to a single entry
+  const many = new ItvxCatalogue({ fetchFn: fakeFetch({ results: Array.from({ length: 60 }, (_, i) => prog('p' + i, 'T' + i)) }), persist: { load: () => [], save: (v) => { disk = v; } } });
+  await many.search('ab'); assert.equal(disk.length, 50); assert.equal(disk[49].id, 'p59');
+  assert.doesNotThrow(() => new ItvxCatalogue({ persist: { load: () => { throw new Error('blocked'); }, save: () => { throw new Error('full'); } } }).getShow('x'));
+});

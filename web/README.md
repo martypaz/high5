@@ -18,3 +18,10 @@ Smoke tests (need Playwright + Chromium): `node tests/e2e.mjs` (demo data, offli
 
 Not verified on a real Xbox yet. Protected (PlayReady) streams are not implemented in the web app.
 The live catalogue belongs to a third party: personal use only, keep request volume low (search is debounced).
+
+
+## My List and all-channel search
+* `MockMyList` (core.js) stores snapshots `{channelId, id, title, genre, kind, rating, ratingKnown, imageUrl}` under `mylist2` (max 200); the old id-only `mylist` is upgraded once.
+* `AllSearchVM` fans a search out to every live channel with `Promise.allSettled`; failures are returned beside the groups, never thrown.
+* A catalogue may keep a small cache between page loads: the registry passes `create({store})`; `ItvxCatalogue` uses it to remember its last 50 search results so show pages survive a reload or channel switch (re-validated on read).
+* Never pass `null` to `replaceChildren()`: it prints the text "null". Use `''`.

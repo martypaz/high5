@@ -1,5 +1,5 @@
 // High5 web - DOM layer: router, screens, D-pad / gamepad navigation, player.
-import { AgeRating, RATING_LABELS, LocalStore, createServices, HomeVM, ShowVM, SearchVM, MyListVM, GuideVM, SignInVM, PlayerVM, progressOf } from './core.js';
+import { AgeRating, RATING_LABELS, LocalStore, createServices, HomeVM, ShowVM, SearchVM, AllSearchVM, MyListVM, GuideVM, SignInVM, PlayerVM, progressOf } from './core.js';
 import { CHANNELS, pickChannel, findChannel } from './channels/index.js';
 
 // Channel = where the data comes from. All channels share this interface and stylesheet; a channel only supplies data.
@@ -7,7 +7,7 @@ const store = new LocalStore();
 const channel = pickChannel(store, globalThis.__HIGH5_DEFAULT_CHANNEL__ ?? (globalThis.__HIGH5_DEFAULT_SOURCE__ === 'demo' ? 'demo' : undefined));
 const isLive = channel.kind === 'live';
 const caps = channel.capabilities;           // which screens make sense for this channel
-const services = createServices(store, { catalogue: channel.create(), channelId: channel.id });
+const services = createServices(store, { catalogue: channel.create({ store }), channelId: channel.id });
 services.mode = channel.id;
 const vms = {
   home: new HomeVM(services), show: new ShowVM(services), search: new SearchVM(services), myList: new MyListVM(services), guide: new GuideVM(services),
@@ -173,37 +173,68 @@ async function renderShow(id) {
   const sub = [v.show.genre, ...(v.show.subgenres ?? []), v.show.channel ? `Channel ${v.show.channel}` : '', v.show.ratingKnown === false ? '' : RATING_LABELS[v.show.rating]].filter(Boolean).join(' · ');
   view.replaceChildren(
     poster(v.show.bannerUrl, 'banner'), h('h1', {}, v.show.title), h('p', { class: 'dim' }, sub), h('p', {}, v.show.synopsis),
-    h('div', { class: 'row' }, playControl, listBtn, ...seasonBtns), v.show.episodesNote ? h('p', { class: 'dim' }, v.show.episodesNote) : null,
+    h('div', { class: 'row' }, playControl, listBtn, ...seasonBtns), v.show.episodesNote ? h('p', { class: 'dim' }, v.show.episodesNote) : '',
     v.show.episodes.length ? eps : h('p', { class: 'dim' }, 'No episodes are listed for this show.'));
 }
 
+const liveChannels = () => CHANNELS.filter((c) => c.kind === 'live' && c.capabilities.search);
+let allSearch = null;
+function allSearchVM() {   // one catalogue per live channel; the current channel reuses the page's own (so its cache is shared)
+  allSearch ??= new AllSearchVM({ parental: services.parental,
+    sources: liveChannels().map((c) => ({ id: c.id, name: c.name, catalogue: c.id === channel.id ? services.catalogue : c.create({ store }) })) });
+  return allSearch;
+}
+
 async function renderSearch() {
-  const results = h('div', { class: 'grid' }), status = h('p', { class: 'dim' }, isLive ? `Type at least two letters to search ${channel.name}.` : 'Type to search shows and genres.');
+  const canAll = isLive && liveChannels().length > 1;
+  let scope = canAll && store.get('searchScope') === 'all' ? 'all' : 'channel';
+  const results = h('div'), status = h('p', { class: 'dim' });
   const input = h('input', { 'data-nav': true, type: 'search', placeholder: 'Search shows', 'aria-label': 'Search', autocomplete: 'off' });
+  const hint = () => (isLive ? `Type at least two letters to search ${scope === 'all' ? 'all channels' : channel.name}.` : 'Type to search shows and genres.');
+  status.textContent = hint();
   const run = async () => {
     try {
       status.className = 'dim';
+      const q = input.value.trim();
+      if (scope === 'all') {
+        if (q.length < 2) { results.replaceChildren(); status.textContent = q ? 'Type at least two letters.' : 'Type to search.'; return; }
+        const r = await allSearchVM().search(q);
+        if (r.stale) return;
+        results.replaceChildren(...r.groups.map((g) => h('section', {}, h('h2', {}, g.name), g.results.length ? h('div', { class: 'grid' }, g.results.map((i) => crossTile(i, false))) : h('p', { class: 'dim' }, `No results on ${g.name}.`))),
+          ...r.failures.map((f) => h('p', { class: 'error' }, `${f.name}: ${f.message}`)));
+        status.textContent = '';
+        return;
+      }
       const r = await vms.search.search(input.value);
       if (r.stale) return;
-      results.replaceChildren(...r.results.map((i) => tile(i, `#/show/${encodeURIComponent(i.id)}`)));
+      results.replaceChildren(h('div', { class: 'grid' }, r.results.map((i) => tile(i, `#/show/${encodeURIComponent(i.id)}`))));
       status.textContent = !r.query.trim() ? 'Type to search.' : r.query.trim().length < 2 && isLive ? 'Type at least two letters.' : r.results.length ? '' : 'No results.';
     } catch (e) { status.className = 'error'; status.textContent = e.message; results.replaceChildren(); }
   };
   let timer; input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, isLive ? 400 : 0); });   // be gentle on a third-party server
   cleanup = () => clearTimeout(timer);
-  view.replaceChildren(h('h1', {}, 'Search'), h('div', { class: 'search-box' }, input, button('Search', () => { clearTimeout(timer); run(); })), status, results);
+  const chooseScope = (v) => () => { scope = v; store.set('searchScope', v); mark(); results.replaceChildren(); status.className = 'dim'; status.textContent = hint(); if (input.value.trim()) { clearTimeout(timer); run(); } };
+  const here = button(channel.name, chooseScope('channel')), all = button('All channels', chooseScope('all'));
+  const mark = () => { here.setAttribute('aria-pressed', String(scope === 'channel')); all.setAttribute('aria-pressed', String(scope === 'all')); };
+  mark();
+  view.replaceChildren(h('h1', {}, 'Search'), h('div', { class: 'search-box' }, input, button('Search', () => { clearTimeout(timer); run(); })),
+    canAll ? h('div', { class: 'row', role: 'group', 'aria-label': 'Where to search' }, here, all) : '', status, results);
+}
+
+/** Tile for an item that may belong to another channel; clicking one from elsewhere switches channel first (the page reloads once). */
+function crossTile(item, labelled = true) {
+  const other = item.channelId && item.channelId !== channel.id && findChannel(item.channelId);
+  const t = tile(item, `#/show/${encodeURIComponent(item.id)}`, labelled && (other || item.channelId) ? h('span', { class: 'g' }, `On ${findChannel(item.channelId)?.name ?? item.channelId}`) : null);
+  if (other) t.addEventListener('click', (e) => {
+    e.preventDefault(); services.store.set('channel', other.id); services.store.set('source', null);
+    location.hash = `#/show/${encodeURIComponent(item.id)}`; location.reload();
+  });
+  return t;
 }
 
 async function renderMyList() {
   const items = await vms.myList.load();
-  // An item from another channel opens that channel first (the page reloads once), then its show page.
-  const open = (i) => (e) => { e.preventDefault(); services.store.set('channel', i.channelId); services.store.set('source', null); location.hash = `#/show/${encodeURIComponent(i.id)}`; location.reload(); };
-  const entry = (i) => {
-    const t = tile(i, `#/show/${encodeURIComponent(i.id)}`, i.channelId !== channel.id ? h('span', { class: 'g' }, `On ${findChannel(i.channelId)?.name ?? i.channelId}`) : null);
-    if (i.channelId !== channel.id && findChannel(i.channelId)) t.addEventListener('click', open(i));
-    return t;
-  };
-  view.replaceChildren(h('h1', {}, 'My List'), items.length ? h('div', { class: 'grid' }, items.map(entry)) : h('p', { class: 'dim' }, 'Nothing here yet - add shows from their page.'));
+  view.replaceChildren(h('h1', {}, 'My List'), items.length ? h('div', { class: 'grid' }, items.map((i) => crossTile(i))) : h('p', { class: 'dim' }, 'Nothing here yet - add shows from their page.'));
 }
 
 async function renderGuide() {

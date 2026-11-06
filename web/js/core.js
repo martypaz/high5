@@ -235,6 +235,29 @@ export class SearchVM {
   }
 }
 
+/**
+ * Search several channels at once. Each channel is asked in parallel; one channel failing never hides the others (its name and message come
+ * back in `failures`). Results are grouped by channel and tagged with channelId so the screen can open the right channel. Last request wins.
+ * `sources` = [{ id, name, catalogue }].
+ */
+export class AllSearchVM {
+  constructor({ sources, parental }) { Object.assign(this, { sources, parental }); this._seq = 0; }
+  async search(query) {
+    const seq = ++this._seq, q = String(query ?? '').trim();
+    if (!q) return { query: '', groups: [], failures: [], stale: false };
+    const settled = await Promise.allSettled(this.sources.map((s) => s.catalogue.search(q)));
+    if (seq !== this._seq) return { query: q, groups: [], failures: [], stale: true };
+    const groups = [], failures = [];
+    settled.forEach((r, i) => {
+      const src = this.sources[i];
+      if (r.status === 'rejected') { failures.push({ channelId: src.id, name: src.name, message: String(r.reason?.message ?? 'Search failed.') }); return; }
+      const results = (Array.isArray(r.value) ? r.value : []).filter((c) => this.parental.isAllowed(c.rating)).map((c) => ({ ...c, channelId: src.id }));
+      groups.push({ channelId: src.id, name: src.name, results });
+    });
+    return { query: q, groups, failures, stale: false };
+  }
+}
+
 export class MyListVM {
   constructor({ myList, parental }) { Object.assign(this, { myList, parental }); }
   async load() { return (await this.myList.get()).filter((i) => this.parental.isAllowed(i.rating)); }

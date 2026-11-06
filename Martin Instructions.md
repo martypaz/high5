@@ -19,6 +19,7 @@ Written so you can follow it **from a phone**.
 | **Channels** (Channel 5, ITVX, Demo - same screens and styling) | **Built.** Switch in the top bar ("Channel: ...") |
 | **ITVX channel** | **Beta - search works** (real results with genres, descriptions and pictures). Show pages list the latest episode only (ITVX keeps full episode lists where a web page can't read them). No home rails or playback. Tested here against the live service and in a real browser |
 | **Skill: read-apk-from-drive** | **Built and tested** (`.claude/skills/read-apk-from-drive`). Reads an APK from Drive and analyses it |
+| **My List** (works across channels) and **Search: This channel / All channels** | **Done and tested.** My List is saved on your device with a small snapshot of each show, so an ITVX item opens from the Channel 5 or Demo view (the app switches channel for you). "All channels" asks Channel 5 and ITVX together and shows results grouped by channel; if one is down it says so and still shows the other |
 | Poster images (tiles, show banner, episode thumbnails) | **Done** (read-only, loaded straight from the catalogue's image host) |
 | Home rails, TV guide, **video playback** | **Not done.** Home shows a simple page in live mode; episodes list details but can't be played |
 | Your Microsoft developer account | Authorised - **only needed for section 4**, nothing more to buy |

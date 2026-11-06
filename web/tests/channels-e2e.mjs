@@ -17,7 +17,7 @@ page.on('pageerror', (e) => errors.push(e.message));
 await page.route((u) => !['127.0.0.1', 'localhost'].includes(u.hostname), async (route) => {
   const url = route.request().url(); external.push(route.request().method() + ' ' + new URL(url).host + new URL(url).pathname);
   if (url.includes('textsearch.prd.oasvc.itv.com/search')) {
-    const mk = (id, t, extra = {}) => ({ contentType: 'vod', entityType: 'programme', data: { programmeCCId: id, programmeTitle: t, synopsis: 'A made-up synopsis.', genre: ['Drama'], totalAvailableEpisodes: 4, tier: 'FREE', latestAvailableEpisode: { imageHref: 'https://ovp.itv.com/images/prXXXXXXX/XXXXXXX/itv_hub/rail/16x9?w={width}&h={height}&q={quality}' }, ...extra } });
+    const mk = (id, t, extra = {}) => ({ contentType: 'vod', entityType: 'programme', data: { programmeCCId: id, programmeTitle: t, synopsis: 'A made-up synopsis.', genre: ['Drama'], totalAvailableEpisodes: 4, tier: 'FREE', latestAvailableEpisode: { episodeCCId: 'e1', imageHref: 'https://ovp.itv.com/images/prXXXXXXX/XXXXXXX/itv_hub/rail/16x9?w={width}&h={height}&q={quality}' }, ...extra } });
     return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ results: [mk('1_1', 'Harbour Detectives'), mk('1_2', 'Orbit Kids', { tier: 'PAID' }), { contentType: 'live', entityType: 'channel', data: { channelName: 'Live One' } }] }) });
   }
   if (route.request().resourceType() === 'image') return route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64') });
@@ -43,9 +43,37 @@ try {
   await page.locator('.grid .tile').first().click(); await page.waitForSelector('h1');
   assert.match(await page.locator('h1').innerText(), /Harbour Detectives/); assert.match(await page.locator('main').innerText(), /Latest episode|4 episodes available/); assert.match(await page.locator('main').innerText(), /A made-up synopsis/);
   assert.match(await page.locator('main').innerText(), /Playback is not available/);
+  assert.ok(!/\bnull\b|undefined/.test(await page.locator('main').innerText()), 'no stray null/undefined text on a show page');
   await page.screenshot({ path: `${out}/c3-itvx-show.png` });
   assert.ok(external.some((r) => r.startsWith('GET textsearch.prd.oasvc.itv.com/search')), 'the search request was made (and answered by the stub)');
   assert.ok(external.every((r) => r.startsWith('GET ')), 'only GET requests: ' + external.join(', '));
+  // Scenario: My List + "All channels" search across channels (Channel 5 is unreachable in this stub, ITVX answers).
+  await page.getByRole('button', { name: 'Add to My List' }).click(); await page.waitForFunction(() => /Remove from My List/.test(document.querySelector('main')?.innerText ?? ''));
+  await page.goto(`http://127.0.0.1:${PORT}/#/search`); await page.waitForSelector('input[type=search]');
+  assert.equal(await page.getByRole('button', { name: 'All channels' }).count(), 1);
+  await page.getByRole('button', { name: 'All channels' }).click();
+  await page.locator('input[type=search]').fill('harbour');
+  await page.waitForSelector('main h2'); await page.waitForSelector('.error');
+  assert.deepEqual(await page.locator('main h2').allInnerTexts(), ['ITVX']);   // the failing channel is reported separately, below
+  assert.match(await page.locator('.error').first().innerText(), /^Channel 5: /);
+  assert.deepEqual(await page.locator('main section', { hasText: 'ITVX' }).locator('.tile .t').allInnerTexts(), ['Harbour Detectives', 'Orbit Kids']);
+  await page.screenshot({ path: `${out}/c5-all-channels.png` });
+  await page.reload(); await page.waitForSelector('input[type=search]');
+  assert.equal(await page.getByRole('button', { name: 'All channels' }).getAttribute('aria-pressed'), 'true');   // the choice is remembered
+  await page.getByRole('button', { name: 'ITVX', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: 'ITVX', exact: true }).getAttribute('aria-pressed'), 'true');
+  await page.goto(`http://127.0.0.1:${PORT}/#/mylist`); await page.waitForSelector('.tile');
+  assert.match(await page.locator('.tile').first().innerText(), /Harbour Detectives/);
+  // Switch to Demo, then open the ITVX item from My List: the app changes channel and the show page still opens (ITVX remembered its search).
+  await page.evaluate(() => localStorage.setItem('high5.channel', 'demo')); await page.reload(); await page.waitForSelector('#channel-link');
+  await page.waitForFunction(() => /Channel: Demo/.test(document.querySelector('#channel-link')?.textContent ?? ''));
+  await page.goto(`http://127.0.0.1:${PORT}/#/mylist`); await page.waitForFunction(() => document.querySelector('h1')?.textContent === 'My List'); await page.waitForSelector('.tile');   // (Demo signs in first)
+  assert.match(await page.locator('.tile', { hasText: 'Harbour Detectives' }).innerText(), /On ITVX/);
+  await page.screenshot({ path: `${out}/c6-mylist-cross-channel.png` });
+  await page.locator('.tile', { hasText: 'Harbour Detectives' }).click();
+  await page.waitForFunction(() => /Channel: ITVX/.test(document.querySelector('#channel-link')?.textContent ?? ''));
+  await page.waitForFunction(() => document.querySelector('h1')?.textContent === 'Harbour Detectives');
+  await page.waitForFunction(() => /Latest episode/.test(document.querySelector('main')?.innerText ?? ''));
   // Scenario 2: what a CORS-blocked request looks like to the page: the normal fetch() fails, but a plain "no-cors" repeat of the same
   // GET goes through (the server is reachable; the browser just refuses to hand over the reply). We tell the two requests apart by their
   // Accept header: the app's JSON request sends `application/json`, the reachability check sends none.
