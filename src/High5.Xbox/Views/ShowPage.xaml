@@ -11,7 +11,7 @@
         </StackPanel>
         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="16" Margin="0,16">
             <Button x:Name="PlayButton" Content="Play" FontSize="26" Click="OnPlay"/>
-            <Button Content="{x:Bind MyListLabel, Mode=OneWay}" FontSize="26" Command="{x:Bind Vm.ToggleMyList}"/>
+            <Button Content="{x:Bind MyListLabel}" FontSize="26" Command="{x:Bind Vm.ToggleMyList}"/>
             <ComboBox ItemsSource="{x:Bind Vm.Seasons, Mode=OneWay}" SelectedItem="{x:Bind Vm.SelectedSeason, Mode=TwoWay}" Header="Series" FontSize="22"/>
         </StackPanel>
         <ListView Grid.Row="2" ItemsSource="{x:Bind Vm.Episodes, Mode=OneWay}" IsItemClickEnabled="True" ItemClick="OnEpisode" SelectionMode="None">

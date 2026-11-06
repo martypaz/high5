@@ -7,7 +7,7 @@
             <ProgressRing IsActive="{x:Bind Vm.IsLoading, Mode=OneWay}" Width="64" Height="64"/>
             <TextBlock Text="{x:Bind Vm.Error, Mode=OneWay}" Foreground="OrangeRed"/>
 
-            <TextBlock Text="Continue watching" FontSize="32" Visibility="{x:Bind HasResume, Mode=OneWay}"/>
+            <TextBlock Text="Continue watching" FontSize="32" Visibility="{x:Bind HasResume}"/>
             <ListView ItemsSource="{x:Bind Vm.ContinueWatching}" ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                       ScrollViewer.VerticalScrollMode="Disabled" IsItemClickEnabled="True" ItemClick="OnResumeClick" SelectionMode="None">
                 <ListView.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="16"/></ItemsPanelTemplate></ListView.ItemsPanel>

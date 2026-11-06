@@ -4,6 +4,7 @@
          xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
          IgnorableNamespaces="uap mp">
   <Identity Name="High5.PersonalUse" Publisher="CN=High5Personal" Version="0.1.0.0"/>
+  <mp:PhoneIdentity PhoneProductId="5b1d2c7e-3f4a-4c8e-9a61-7d0e2f1b8c33" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
   <Properties>
     <DisplayName>High5</DisplayName><PublisherDisplayName>High5 (personal use)</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
