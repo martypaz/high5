@@ -94,3 +94,10 @@ Verified response shape (field names; no catalogue text recorded):
 * Artwork links are templates on `ovp.itv.com` (`.../itv_hub/<class>/16x9?...&w={width}&h={height}&q={quality}&blur={blur}&bg={bg}&treatment={treatment}&fallback={fallback}`); fill width/height/quality and drop the rest.
 
 Probe log (all anonymous GETs, approved by the owner): 5 identity variants (404), 1 corrected request (200), plus two browser runs of the smoke test (search + artwork). Status: **beta, search only**; programme pages/episodes, home, playback and accounts are not implemented.
+
+### Programme pages (static finding from the third agent, not probed)
+* Search needs **no second lookup**: `SearchResponse.results[]` goes straight to tiles; tapping a tile opens a programme page.
+* The programme page uses the `muninn_base_url` (`.../discovery`) **Apollo GraphQL** client (POST only; operations `ProgrammePage`, `Production`, `TitlesOrBrandByCCIdOrLegacy`, `PreTx`, `Categories`, `CollectionRails`, ... with variables `$broadcaster`, `$features`, `$ccid`, `$titleLegacyId`, `$brandLegacyId`).
+  That client sends `User-Agent: ITV_Player_(Android)`, i.e. the official app's identity. A JSON POST from a web page also triggers a CORS pre-flight that the service may not allow.
+* Consequence: episodes/programme details are a different and harder problem than search. Using the official User-Agent would be impersonating the app, which this project does not do. Not attempted.
+* The shortform GraphQL client (`shortform_base_url`) serves `Homepage`, `Clip` and category rails (video clips, not the catalogue).
