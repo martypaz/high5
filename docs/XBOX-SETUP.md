@@ -1,7 +1,8 @@
 # Building and running on Xbox
 
-The UWP shell in `src/High5.Xbox` has **not been compiled yet** (it was written on Linux). Expect a few
-small fixes on first build. The logic it uses (`High5.Core`) is tested.
+The UWP shell in `src/High5.Xbox` compiles and packages in GitHub Actions (`.github/workflows/ci.yml`, windows-2022 image).
+It has not been run on a real console. The logic it uses (`High5.Core`) is unit-tested. A ready-made project file exists, so the
+"create the project" steps below are only needed if you want a different setup; normally open `src/High5.Xbox/High5.Xbox.csproj`.
 
 ## 1. Create the project (Windows 10/11)
 1. Install Visual Studio 2022 with the **Universal Windows Platform development** workload.

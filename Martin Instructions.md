@@ -14,7 +14,7 @@ install or sign up for, and what to do next. Written so you can follow it **from
 | Analysis of the My5 Android app (7.26.6) | Done - `docs/analysis/my5-7.26.6.md` |
 | Core logic (screens' behaviour, parental PIN, resume, sign-in flow, My List) | **Built and tested** - 31 automatic tests pass on GitHub |
 | Live connection to My5's user service (sign-in code, My List, resume) | **Written and unit-tested against a fake server only.** Never run against the real service |
-| Xbox app screens (UWP) | Written. **Builds on GitHub's Windows machines** *(see section 2 for the latest build result)* |
+| Xbox app screens (UWP) | Written, and **builds and packages successfully on GitHub's Windows machines** (latest run is green) |
 | Real TV catalogue and video playback | **Not done.** Uses made-up demo shows and a public test video. The real catalogue/playback addresses come from the official app's remote config, which I have not touched |
 | Installed on your Xbox | **Not yet** - needs your steps in section 3 |
 
@@ -30,11 +30,13 @@ GitHub builds the app for you every time code is pushed.
 
 1. On your phone open: **github.com/martypaz/high5** > **Actions** tab.
 2. Open the newest run named **CI** with a green tick on the branch `ccr-52cad7bd-nxyfdf`.
-3. Scroll to **Artifacts** and download **high5-xbox-sideload** (a zip). Save it to your phone.
-4. Unzip it (Files by Google / any unzip app). You should see:
-   - a folder `High5.Xbox_0.1.0.0_x64_Test` containing `High5.Xbox_0.1.0.0_x64.appx` (the app)
-   - a `Dependencies` folder (support packages the app needs)
-   - `High5.cer` (the public test certificate)
+3. Scroll to **Artifacts** and download **high5-xbox-sideload** (a ~58 MB zip). Save it to your phone.
+4. Unzip it (Files by Google, or any unzip app). Inside is the folder **`High5.Xbox_0.1.0.0_x64_Test`**:
+   - **`High5.Xbox_0.1.0.0_x64.appx`** - the app itself
+   - **`Dependencies/x64/`** - three support packages the app needs, **install these first**:
+     `Microsoft.VCLibs.x64.14.00.appx`, `Microsoft.NET.CoreRuntime.2.2.appx`, `Microsoft.NET.CoreFramework.Debug.2.2.appx`
+   - a `.cer` (the public test certificate) and some Windows PowerShell helper files you can ignore
+   - (the other folders `arm`, `ARM64`, `x86` are not needed for an Xbox)
 
 If the run shows a red cross, **don't worry - tell me and I'll fix it** (I can read the build log).
 
@@ -65,11 +67,11 @@ No PC, Visual Studio or Windows licence is needed for this route.
 1. On the phone's browser go to `https://<xbox-ip>:11443` (accept the security warning - it's your own console).
 2. Sign in with the Device Portal username/password.
 3. Open **My games & apps** > **Add** (or "Install app").
-4. Choose the **dependency packages first** (the files in `Dependencies`), then the `High5.Xbox_..._x64.appx`.
+4. Upload the three **`Dependencies/x64`** packages first (VCLibs, CoreRuntime, CoreFramework), then `High5.Xbox_0.1.0.0_x64.appx`.
 5. Start it from **Dev Home > My games & apps**.
 
 > **Honest caveat:** I could not test steps 3c on a real console. The package is signed with a throw-away test
-> certificate. Some Xbox firmware only accepts packages that were deployed from Visual Studio. If the Device Portal
+> certificate and uses the standard (non-"Native") .NET runtime, which works in Dev Mode but I haven't confirmed on your firmware. Some Xbox firmware only accepts packages that were deployed from Visual Studio. If the Device Portal
 > refuses the file, tell me exactly what message it shows - there are two fallbacks (a Visual Studio deployment from any
 > Windows PC, or I change the packaging settings).
 

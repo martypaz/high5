@@ -11,8 +11,8 @@ An unofficial **Xbox (UWP) client modelled on the My5 / Channel 5 Android app**.
 ## What exists
 | Part | State |
 |---|---|
-| `src/High5.Core` - models, service interfaces, view-models, parental PIN, resume logic, HTTP client for the known paths | **Built and tested** (23 xunit tests, `dotnet test High5.Core.sln`) |
-| `src/High5.Xbox` - UWP XAML shell (sign-in, home, show, search, My List, TV guide, settings, player) | **Written but NOT compiled** - needs Windows + Visual Studio (see `docs/XBOX-SETUP.md`) |
+| `src/High5.Core` - models, service interfaces, view-models, parental PIN, resume logic, HTTP client for the known paths | **Built and tested** (31 xunit tests, `dotnet test High5.Core.sln`) |
+| `src/High5.Xbox` - UWP XAML shell (sign-in, home, show, search, My List, TV guide, settings, player) | **Compiles and packages in GitHub Actions** (Windows runner); never run on a real Xbox yet. See `Martin Instructions.md` |
 | Data | Mock catalogue (invented titles) and a public test stream. Real back end not wired up. |
 | `docs/analysis/my5-7.26.6.md` | Static analysis of the reference Android app |
 
