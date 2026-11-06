@@ -17,7 +17,7 @@ Written so you can follow it **from a phone**.
 | **Live search + show pages (read-only)** | **Built and tested in a real browser.** Real shows, series, episodes, lengths, ratings, availability dates. GET requests only, no account. Used in the web version |
 | Live sign-in, My List sync, resume sync | Written and unit-tested against a fake server only. Never run against the real service (the web version doesn't use them) |
 | Home rails, TV guide, images, **video playback** | **Not done.** Home shows a simple page in live mode; episodes list details but can't be played |
-| Your developer account (martypaz@hotmail.com) | Authorised - **only needed for section 4**, nothing more to buy |
+| Your Microsoft developer account | Authorised - **only needed for section 4**, nothing more to buy |
 
 **What you'll see today:** in **Live** mode, search finds real shows (try "999") and each show page lists its series and episodes with
 details. You can't play anything yet. The phone preview in this chat uses **Demo** mode, because its sandbox blocks outside websites; to
@@ -69,7 +69,7 @@ You told me Developer Mode killed your Xbox last time and needed a reset. **I wo
 turns out to be unusable. I can't promise the same thing wouldn't happen; Developer Mode is an official Microsoft feature but
 I can't test it on your console. If you ever decide to try:
 * back up anything you care about first and make sure the console has all system updates;
-* your developer account (martypaz@hotmail.com) is already authorised, so there is no fee or sign-up;
+* your Microsoft developer account is already authorised, so there is no fee or sign-up;
 * the steps would be: Dev Mode Activation app > Dev Home > enable Device Portal > from your phone open `https://<xbox-ip>:11443` >
   upload the three files in `Dependencies/x64` first, then `High5.Xbox_0.1.0.0_x64.appx`.
 * I haven't tested that install on a console. Tell me before you start and we'll go step by step.
