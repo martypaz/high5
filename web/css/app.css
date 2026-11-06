@@ -10,7 +10,7 @@ nav { display:flex; gap:.5rem; }
 nav a, .btn { padding:.55rem 1.1rem; border-radius:.5rem; background:transparent; border:2px solid transparent; font-size:1.05rem; color:var(--text); cursor:pointer; font-family:inherit; }
 nav a.active { border-bottom:3px solid var(--accent); }
 .btn { background:var(--panel); }
-.btn.primary { background:var(--accent); }
+.btn.primary, .btn[aria-pressed="true"] { background:var(--accent); }
 /* The focus ring is the most important thing on a TV. */
 [data-nav]:focus { outline: 4px solid #fff; outline-offset: 3px; transform: scale(1.04); z-index:2; }
 [data-nav] { transition: transform .08s ease; }

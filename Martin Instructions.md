@@ -14,12 +14,14 @@ Written so you can follow it **from a phone**.
 | Analysis of the My5 Android app (7.26.6) | Done - `docs/analysis/my5-7.26.6.md` |
 | **Web version (runs in the Xbox's Edge browser - NO Developer Mode)** | **Built and tested here** (17 unit tests + a keyboard-driven browser test with screenshots). Not tried on a real Xbox yet |
 | Xbox app version (UWP) | Builds and packages on GitHub's Windows machines, but installing it needs Xbox **Developer Mode** - see section 4 (I don't recommend it, given what happened last time) |
-| Live My5 connection (sign-in code, My List, resume) | Written and unit-tested against a fake server only. Never run against the real service |
-| Real TV catalogue + real video | **Not done.** Uses made-up demo shows and a public test video |
+| **Live search + show pages (read-only)** | **Built and tested in a real browser.** Real shows, series, episodes, lengths, ratings, availability dates. GET requests only, no account. Used in the web version |
+| Live sign-in, My List sync, resume sync | Written and unit-tested against a fake server only. Never run against the real service (the web version doesn't use them) |
+| Home rails, TV guide, images, **video playback** | **Not done.** Home shows a simple page in live mode; episodes list details but can't be played |
 | Your developer account (martypaz@hotmail.com) | Authorised - **only needed for section 4**, nothing more to buy |
 
-**What you'll see today:** a TV-style app (Home with Continue watching, Search, TV guide, My List, Settings, Player) showing
-invented demo shows. It proves the interface works with a controller. It is **not yet My5**.
+**What you'll see today:** in **Live** mode, search finds real shows (try "999") and each show page lists its series and episodes with
+details. You can't play anything yet. The phone preview in this chat uses **Demo** mode, because its sandbox blocks outside websites; to
+try Live you need the hosted version (section 2a). In Demo mode everything is invented.
 
 ---
 
@@ -74,23 +76,25 @@ I can't test it on your console. If you ever decide to try:
 
 ---
 
-## 5. Making it real (needs your decision)
+## 5. What the live mode does, and what's next
 
-To show **real My5 content** the app needs two values that My5's own app fetches when it starts. I have **not** put them in the
-repository and I haven't extracted or used them:
-* the address of the user service (`userServiceBase`), and
-* the `platform` name the service expects.
+You approved **read-only search and show pages**. That is what's built:
+* It reads the same public config document the official Android app downloads at start-up, then asks the catalogue for searches,
+  show details and episode lists. Plain GET requests, no login, no cookies, nothing written. The addresses come from that config at
+  run time; the only address fixed in the code is where to find the config.
+* A built-in check refuses any catalogue address that isn't on channel5.com, and search waits briefly between keystrokes so it doesn't
+  hammer their servers.
+* Parental lock: the catalogue only gives `G` / `G+` ratings on episodes and none on search results, so unknown ratings count as 18.
+  (If you set a low limit, live search results will mostly be hidden. That is deliberate.)
+* Things you should still know: this is a third party's service used without a partner agreement, so Channel 5 could change or block it,
+  and their terms may not allow it. Keep it personal and low-volume.
 
-If you decide to go ahead (personal use, your own account), they would go in a **local file that is never committed**:
-```json
-{ "userServiceBase": "https://...", "platform": "..." }
-```
-Know before deciding:
-* Signing in like the official app uses **the official app's identity** on the server. A third-party app doing that may break
-  Channel 5's terms of use and could be blocked at any time. It's your call; tell me explicitly if you want me to continue and how far.
-* Real video also needs the catalogue and playback services (not done) and protected streams. I won't remove DRM or get around the
-  UK-only / VPN checks.
-* The fully legitimate alternative is to ask Channel 5 about partner/API access.
+**Not done, and each needs your separate go-ahead:**
+1. **Images** (poster pictures from the catalogue's image service).
+2. **Home rails and the TV guide** (more catalogue calls).
+3. **Anything with your My5 account** (sign-in, My List sync, resume sync). That means acting as the official app on their servers.
+4. **Video playback.** Needs licences and protected streams (PlayReady on Xbox). I will not remove DRM or get around the UK-only/VPN checks.
+The legitimate alternative to all of this is asking Channel 5 about partner access.
 
 ---
 

@@ -1,7 +1,13 @@
 // High5 web - DOM layer: router, screens, D-pad / gamepad navigation, player.
 import { AgeRating, RATING_LABELS, LocalStore, createServices, HomeVM, ShowVM, SearchVM, MyListVM, GuideVM, SignInVM, PlayerVM, progressOf } from './core.js';
+import { LiveCatalogue } from './live.js';
 
-const services = createServices(new LocalStore());
+// Data source: 'live' = read-only catalogue (search + show pages), 'demo' = invented offline data.
+const store = new LocalStore();
+const mode = store.get('source') ?? globalThis.__HIGH5_DEFAULT_SOURCE__ ?? 'live';
+const isLive = mode === 'live';
+const services = createServices(store, isLive ? { catalogue: new LiveCatalogue() } : {});
+services.mode = mode;
 const vms = {
   home: new HomeVM(services), show: new ShowVM(services), search: new SearchVM(services), myList: new MyListVM(services), guide: new GuideVM(services),
 };
@@ -97,7 +103,7 @@ function pollPad() {
 requestAnimationFrame(pollPad);
 
 // ---------- routing ----------
-const signedIn = () => !!services.auth.session || services.store.get('mock.signedIn') === '1';
+const signedIn = () => isLive || !!services.auth.session || services.store.get('mock.signedIn') === '1';   // live mode is read-only and uses no account
 const routes = {
   home: renderHome, show: renderShow, play: renderPlayer, live: renderLive, search: renderSearch, guide: renderGuide,
   mylist: renderMyList, settings: renderSettings, signin: renderSignIn,
@@ -113,7 +119,7 @@ async function route() {
   const arg = decodeURIComponent(rest.join('/'));
   const target = signedIn() || name === 'signin' ? name : 'signin';
   if (target !== name) { replaceRoute('#/signin'); return; }
-  document.querySelectorAll('#topbar nav a').forEach((a) => a.classList.toggle('active', a.dataset.route === target));
+  document.querySelectorAll('#topbar nav a').forEach((a) => { a.classList.toggle('active', a.dataset.route === target); if (isLive && a.dataset.route === 'guide') a.style.display = 'none'; });
   document.getElementById('topbar').style.display = target === 'signin' || target === 'play' || target === 'live' ? 'none' : '';
   view.replaceChildren(h('p', { class: 'dim' }, 'Loading…'));
   try { await (routes[target] ?? renderHome)(arg); } catch (e) { view.replaceChildren(h('p', { class: 'error' }, e.message), button('Back', goBack)); }
@@ -123,6 +129,13 @@ if (!memoryRouter) addEventListener('hashchange', route);
 
 // ---------- screens ----------
 async function renderHome() {
+  if (isLive) {
+    view.replaceChildren(h('h1', {}, 'Home'),
+      h('p', {}, 'Connected to the live catalogue in read-only mode.'),
+      h('p', { class: 'dim' }, 'Search and show pages work. Browse rails, the TV guide and playback are not built yet.'),
+      h('div', { class: 'row' }, nav({ class: 'btn primary', href: '#/search' }, 'Search shows'), nav({ class: 'btn', href: '#/mylist' }, 'My List')));
+    return;
+  }
   const { rails, continueWatching } = await vms.home.load();
   const out = [h('h1', {}, 'Home')];
   if (continueWatching.length) out.push(...rail('Continue watching', continueWatching.map((c) =>
@@ -131,6 +144,9 @@ async function renderHome() {
   view.replaceChildren(...out);
 }
 
+const mins = (sec) => `${Math.round(sec / 60)} min`;
+const dateOf = (ms) => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
 async function renderShow(id) {
   const vm = vms.show, v = await vm.load(id);
   let season = v.selectedSeason, inList = v.inMyList;
@@ -138,25 +154,39 @@ async function renderShow(id) {
     inList = await vm.toggleMyList(id); listBtn.textContent = inList ? 'Remove from My List' : 'Add to My List'; toast(inList ? 'Added to My List' : 'Removed from My List');
   });
   const seasonBtns = v.seasons.map((s) => button(`Series ${s}`, () => { season = s; drawEps(); }));
-  const drawEps = () => eps.replaceChildren(...v.episodesFor(season).map((e) =>
-    nav({ class: 'ep', href: `#/play/${encodeURIComponent(e.id)}` }, h('div', { class: 't' }, `${e.episode}. ${e.title}`), h('div', { class: 's' }, e.synopsis))));
+  const markSeasons = () => seasonBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(v.seasons[i] === season)));
+  const drawEps = () => { markSeasons(); eps.replaceChildren(...v.episodesFor(season).map((e) => {
+    if (isLive) {   // read-only: details only, no playback
+      const meta = [e.durationSeconds ? mins(e.durationSeconds) : '', e.ratingCode, e.available ? (e.availableUntilMs ? `Available until ${dateOf(e.availableUntilMs)}` : 'Available') : 'Not currently available', e.hasSubtitles ? 'Subtitles' : ''].filter(Boolean).join(' · ');
+      return h('div', { class: 'ep', tabindex: '0', 'data-nav': true }, h('div', { class: 't' }, `${e.episode}. ${e.title}`), h('div', { class: 's' }, e.synopsis), h('div', { class: 's' }, meta), e.advisory ? h('div', { class: 's' }, e.advisory) : null);
+    }
+    return nav({ class: 'ep', href: `#/play/${encodeURIComponent(e.id)}` }, h('div', { class: 't' }, `${e.episode}. ${e.title}`), h('div', { class: 's' }, e.synopsis));
+  })); };
   drawEps();
+  const next = v.nextToWatch, first = v.show.episodes[0];
+  const playControl = isLive ? h('span', { class: 'dim' }, 'Playback is not available in this version.')
+    : next ? nav({ class: 'btn primary', href: `#/play/${encodeURIComponent(next.id)}` }, next.id !== first?.id ? 'Resume' : 'Play') : null;
+  const sub = [v.show.genre, ...(v.show.subgenres ?? []), v.show.channel ? `Channel ${v.show.channel}` : '', RATING_LABELS[v.show.rating]].filter(Boolean).join(' · ');
   view.replaceChildren(
-    h('h1', {}, v.show.title), h('p', { class: 'dim' }, `${v.show.genre} · ${RATING_LABELS[v.show.rating]}`), h('p', {}, v.show.synopsis),
-    h('div', { class: 'row' }, nav({ class: 'btn primary', href: `#/play/${encodeURIComponent(v.nextToWatch.id)}` }, v.nextToWatch.id !== v.show.episodes[0].id ? 'Resume' : 'Play'), listBtn, ...seasonBtns), eps);
+    h('h1', {}, v.show.title), h('p', { class: 'dim' }, sub), h('p', {}, v.show.synopsis),
+    h('div', { class: 'row' }, playControl, listBtn, ...seasonBtns), v.show.episodes.length ? eps : h('p', { class: 'dim' }, 'No episodes are listed for this show.'));
 }
 
 async function renderSearch() {
-  const results = h('div', { class: 'grid' }), status = h('p', { class: 'dim' }, 'Type to search shows and genres.');
-  const input = h('input', { 'data-nav': true, type: 'search', placeholder: 'Search shows and genres', 'aria-label': 'Search', autocomplete: 'off' });
+  const results = h('div', { class: 'grid' }), status = h('p', { class: 'dim' }, isLive ? 'Type at least two letters to search the live catalogue.' : 'Type to search shows and genres.');
+  const input = h('input', { 'data-nav': true, type: 'search', placeholder: 'Search shows', 'aria-label': 'Search', autocomplete: 'off' });
   const run = async () => {
-    const r = await vms.search.search(input.value);
-    if (r.stale) return;
-    results.replaceChildren(...r.results.map((i) => tile(i, `#/show/${encodeURIComponent(i.id)}`)));
-    status.textContent = !r.query ? 'Type to search shows and genres.' : r.results.length ? '' : 'No results.';
+    try {
+      status.className = 'dim';
+      const r = await vms.search.search(input.value);
+      if (r.stale) return;
+      results.replaceChildren(...r.results.map((i) => tile(i, `#/show/${encodeURIComponent(i.id)}`)));
+      status.textContent = !r.query.trim() ? 'Type to search.' : r.query.trim().length < 2 && isLive ? 'Type at least two letters.' : r.results.length ? '' : 'No results.';
+    } catch (e) { status.className = 'error'; status.textContent = e.message; results.replaceChildren(); }
   };
-  input.addEventListener('input', run);
-  view.replaceChildren(h('h1', {}, 'Search'), h('div', { class: 'search-box' }, input, button('Search', run)), status, results);
+  let timer; input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, isLive ? 400 : 0); });   // be gentle on a third-party server
+  cleanup = () => clearTimeout(timer);
+  view.replaceChildren(h('h1', {}, 'Search'), h('div', { class: 'search-box' }, input, button('Search', () => { clearTimeout(timer); run(); })), status, results);
 }
 
 async function renderMyList() {
@@ -165,6 +195,7 @@ async function renderMyList() {
 }
 
 async function renderGuide() {
+  if (isLive) { view.replaceChildren(h('h1', {}, 'TV guide'), h('p', { class: 'dim' }, 'The TV guide is not available with live data yet.')); return; }
   const rows = await vms.guide.load(6 * 3600_000);
   view.replaceChildren(h('h1', {}, 'TV guide'), h('table', { class: 'guide' }, rows.map((r) =>
     h('tr', {}, h('td', {}, nav({ class: 'btn', href: `#/live/${encodeURIComponent(r.channel.id)}` }, r.channel.name)),
@@ -176,6 +207,9 @@ async function renderSettings() {
   const p = services.parental;
   const pin = h('input', { 'data-nav': true, type: 'password', inputmode: 'numeric', maxlength: '4', placeholder: '4-digit PIN', 'aria-label': 'PIN' });
   const rating = h('select', { 'data-nav': true, 'aria-label': 'Maximum age rating' }, Object.entries(AgeRating).map(([name, v]) => h('option', { value: v, selected: v === p.maxRating }, `${RATING_LABELS[v]} (${name})`)));
+  const sourceSelect = h('select', { 'data-nav': true, 'aria-label': 'Data source' },
+    h('option', { value: 'live', selected: isLive }, 'Live catalogue (read-only)'), h('option', { value: 'demo', selected: !isLive }, 'Demo data'));
+  sourceSelect.addEventListener('change', () => { services.store.set('source', sourceSelect.value); location.reload(); });
   const status = h('p', { class: 'dim' }, p.hasPin ? 'A PIN is set. Enter it to change the rating limit.' : 'No PIN set.');
   rating.addEventListener('change', async () => {
     const ok = await p.setMaxRating(Number(rating.value), pin.value);
@@ -185,6 +219,7 @@ async function renderSettings() {
   view.replaceChildren(h('h1', {}, 'Settings'), h('h2', {}, 'Parental controls'),
     h('div', { class: 'row' }, pin, button('Set PIN', async () => { try { await p.setPin(pin.value); pin.value = ''; status.textContent = 'PIN saved.'; } catch (e) { status.textContent = e.message; } })),
     h('div', { class: 'row' }, rating), status,
+    h('h2', {}, 'Data'), h('div', { class: 'row' }, sourceSelect), h('p', { class: 'dim' }, isLive ? 'Live: read-only search and show pages from the real catalogue. No account is used.' : 'Demo: invented shows, works offline.'),
     h('h2', {}, 'Account'), button('Sign out', async () => { await services.auth.signOut(); services.store.set('mock.signedIn', null); go('#/signin'); }));
 }
 
@@ -234,9 +269,10 @@ async function playerScreen(vm) {
   cleanup = async () => { removeEventListener('pagehide', onHide); await onHide(); video.pause(); detach(); video.removeAttribute('src'); video.load(); };
 }
 async function renderPlayer(id) {
+  if (isLive) throw new Error('Playback is not available in this version.');
   const ep = await services.catalogue.getEpisode(id); if (!ep) throw new Error('Episode not found.');
   await playerScreen(await new PlayerVM(services).loadEpisode(ep));
 }
-async function renderLive(channelId) { await playerScreen(await new PlayerVM(services).loadLive(channelId)); }
+async function renderLive(channelId) { if (isLive) throw new Error('Live TV is not available in this version.'); await playerScreen(await new PlayerVM(services).loadLive(channelId)); }
 
 route();

@@ -270,8 +270,7 @@ export class PlayerVM {
   }
 }
 
-export function createServices(store) {
-  const catalogue = new MockCatalogue();
+export function createServices(store, { catalogue = new MockCatalogue() } = {}) {
   return {
     store, catalogue, live: new MockLive(), auth: new MockAuth(), parental: new ParentalControl(store),
     myList: new MockMyList(catalogue, store), resume: new MockResume(store), playback: new MockPlayback(),

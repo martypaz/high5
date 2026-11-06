@@ -13,6 +13,7 @@ await new Promise((r) => setTimeout(r, 800));
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
+await page.addInitScript(() => { try { localStorage.setItem('high5.source', 'demo'); } catch {} });   // never hit real servers from this test
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) errors.push('console: ' + m.text()); });
@@ -61,14 +62,14 @@ try {
   assert.match(await text(), /Now/); await shot('guide');
 
   // Parental controls: set PIN, limit to PG, verify an 18 show disappears, and the PIN is required to change it back
-  await page.goto(`http://127.0.0.1:${PORT}/#/settings`); await page.waitForSelector('select');
+  await page.goto(`http://127.0.0.1:${PORT}/#/settings`); await page.waitForSelector('select[aria-label="Maximum age rating"]');
   await page.locator('input[type=password]').fill('1234');
   await page.getByRole('button', { name: 'Set PIN' }).click();
   await page.waitForFunction(() => document.body.innerText.includes('PIN saved'));
-  await page.locator('select').selectOption('1');              // PG - PIN still typed? field was cleared, so this must be refused
+  await page.locator('select[aria-label="Maximum age rating"]').selectOption('1');              // PG - PIN still typed? field was cleared, so this must be refused
   await page.waitForFunction(() => document.body.innerText.includes('Enter your PIN'));
   await page.locator('input[type=password]').fill('1234');
-  await page.locator('select').selectOption('1');
+  await page.locator('select[aria-label="Maximum age rating"]').selectOption('1');
   await page.waitForFunction(() => document.body.innerText.includes('Rating limit updated')); await shot('settings');
   await page.goto(`http://127.0.0.1:${PORT}/#/home`); await page.waitForSelector('.tile');
   const home = await text();
